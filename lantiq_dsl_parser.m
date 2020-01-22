@@ -2,12 +2,20 @@ function [ output_args ] = lantiq_dsl_parser( input_args )
 %LANTIQ_DSL_PARSER Summary of this function goes here
 %   Detailed explanation goes here
 
-explore_all_subcommands = 0;
+% TODO: 
+%	scale the x_vecs correctly, by evaluating nGroupSize
+%	add textual summary and error statistics page
+%	find G.INP RTX counter?
+%	separate data acquisition and plotting
+%	save out plots and data
+%	allow to read from precanned text captures of dsl_cmd output
+%	collect statistics over collected per bin data (min, max, mode, ...)
 
 process_bitallocation = 0;
 process_bitallocation2 = 0;
-process_gainallocation = 0;
-process_snrallocation = 0;
+process_gainallocation = 1;
+process_gainallocation2 = 1;
+process_snrallocation = 1;
 process_deltaSNR = 1;
 process_deltaHLOG = 1;
 process_deltaQLN = 1;
@@ -52,17 +60,6 @@ end
 %TODO get the number and names of the required arguments for each sub
 %command
 
-
-
-% get the SNR per Bin
-%[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, 'g997dsnrg', '1 1');
-
-% % per pin data (VDSL2)
-% g997bang,      G997_BitAllocationNscGet
-% g997bansg,     G997_BitAllocationNscShortGet
-% g997gang,      G997_GainAllocationNscGet
-% g997gansg,     G997_GainAllocationNscShortGet
-%
 % % G.INP:
 % lfcg 1 0
 % lfcg 1 1
@@ -80,8 +77,9 @@ if (process_bitallocation)
 	for i_dir = 1:length(direction_list)
 		cur_dir = direction_list(i_dir);
 		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]) = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output);
+		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
+			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data_orig = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data;
 	end
 	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
 	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
@@ -98,6 +96,7 @@ if (process_bitallocation)
 	xlabel('Bin');
 	title({[dsl_sub_cmd_name, '; Up: ', num2str(n_bits_upload/1000), ' kbit; Down: ', num2str(n_bits_download/1000), ' kbit']; ...
 		['Up: ', num2str(n_bits_upload*4/1000), ' Mbps; Down: ', num2str(n_bits_download*4/1000), ' Mbps']}, 'Interpreter', 'None');
+	set(gca(), 'XLim', [0 current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).NumData]);
 end
 
 if (process_bitallocation2)
@@ -110,8 +109,9 @@ if (process_bitallocation2)
 	for i_dir = 1:length(direction_list)
 		cur_dir = direction_list(i_dir);
 		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]) = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output);
+		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
+			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data_orig = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data
 	end
 	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
 	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
@@ -140,8 +140,53 @@ if (process_gainallocation)
 	for i_dir = 1:length(direction_list)
 		cur_dir = direction_list(i_dir);
 		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]) = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output);
+		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
+			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data_orig = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data;
+		% T-REC-G.997.1-201902: 7.5.1.29.3 Downstream gains allocation (GAINSpsds)
+		% This parameter specifies the downstream gains allocation table per subcarrier. It is an array of 
+		% integer values in the 0 to 4 093 range for subcarriers 0 to NSds. The gain value is represented 
+		% as a multiple of 1/512 on linear scale. The same GAINSpsds format shall be applied to ITU-T G.992.3 
+		% and ITU-T G.992.5 Annex C FEXT GAINSpsds and NEXT GAINSpsds.
+		% The reported gains of subcarriers out of the downstream MEDLEY set shall be set to 0.
+		% This parameter shall be reported with the most recent values when read over the Q-interface.
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data / 512;
+	end
+	
+	g997gansg_fh = figure('Name', dsl_sub_cmd_name);
+	%TODO refactor plotting code to function
+	% plot the bit allocations over bin, green for upload, blue for download (just copy the colors from AVM)
+	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'EdgeColor', bit_color_up, 'FaceColor', bit_color_up);
+	hold on
+	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 'EdgeColor', bit_color_down, 'FaceColor', bit_color_down);
+	hold off
+	%set(gca(), 'YLim', [0 16]);
+	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
+	xlabel('Bin');
+	title([dsl_sub_cmd_name], 'Interpreter', 'None');
+	set(gca(), 'XLim', [0 current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).NumData]);
+end
+
+if (process_gainallocation2)
+	dsl_sub_cmd_string = 'g997gang';
+	
+	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
+	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
+	
+	for i_dir = 1:length(direction_list)
+		cur_dir = direction_list(i_dir);
+		cur_dir_string = [num2str(cur_dir)];
+		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
+			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data_orig = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data;
+		% T-REC-G.997.1-201902: 7.5.1.29.3 Downstream gains allocation (GAINSpsds)
+		% This parameter specifies the downstream gains allocation table per subcarrier. It is an array of 
+		% integer values in the 0 to 4 093 range for subcarriers 0 to NSds. The gain value is represented 
+		% as a multiple of 1/512 on linear scale. The same GAINSpsds format shall be applied to ITU-T G.992.3 
+		% and ITU-T G.992.5 Annex C FEXT GAINSpsds and NEXT GAINSpsds.
+		% The reported gains of subcarriers out of the downstream MEDLEY set shall be set to 0.
+		% This parameter shall be reported with the most recent values when read over the Q-interface.
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data / 512;
 	end
 	
 	g997gansg_fh = figure('Name', dsl_sub_cmd_name);
@@ -157,6 +202,7 @@ if (process_gainallocation)
 	title([dsl_sub_cmd_name], 'Interpreter', 'None');
 end
 
+
 %
 %
 if (process_snrallocation)
@@ -169,13 +215,14 @@ if (process_snrallocation)
 	for i_dir = 1:length(direction_list)
 		cur_dir = direction_list(i_dir);
 		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]) = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output);
+		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data_orig = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data;
 		% mask out the FF/255 bins, as these are not used for each
 		% respective direction
 		FF_idx = find(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data == 255);
-		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data(FF_idx) = 0;
 		
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data = -32 + (current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data * 0.5);
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data(FF_idx) = 0;
 	end
 	
 	g997sansg_fh = figure('Name', dsl_sub_cmd_name);
@@ -203,18 +250,25 @@ if (process_deltaSNR)
 	for i_dir = 1:length(direction_list)
 		cur_dir = direction_list(i_dir);
 		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_dir_string, ' 1']);
-		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]) = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output);
+		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
+			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_dir_string, ' 1']);
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data_orig = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data;
+
 		% mask out the FF/255 bins, as these are not used for each
 		% respective direction
 		FF_idx = find(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data == 255);
 		%current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data(FF_idx) = 0;
 		
+		% T-REC-G.997.1-201902: 7.5.1.28.3 Downstream SNR(f) (SNRpsds)
+		% This parameter is an array of real values in decibels for downstream SNR(f). Each array entry represents 
+		% the SNR(f = i × SNRGds × ?f) value for a particular subcarrier group index i, ranging from 0 to MIN(NSds,511). 
+		% The SNR(f) is represented as (?32 + snr(i)/2), where snr(i) is an unsigned integer in the range from 0 to 254. 
+		% A special value indicates that no measurement could be done for this subcarrier group because it is out of the 
+		% passband or that the SNR is out of range to be represented. The same SNRpsds format shall be applied to ITU-T G.992.3 
+		% and ITU-T G.992.5 Annex C FEXT SNRpsds and NEXT SNRpsds.
 		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data = -32 + (current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data * 0.5);
-		% see 7.5.1.28.3 Downstream SNR(f) (SNRpsds), T-REC-G.997.1-201902
-		%(-32 + snr(i)/2)
+		
 		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data(FF_idx) = 0;
-
 	end
 	
 	g997dsnrg_fh = figure('Name', dsl_sub_cmd_name);
@@ -242,8 +296,9 @@ if (process_deltaHLOG)
 	for i_dir = 1:length(direction_list)
 		cur_dir = direction_list(i_dir);
 		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_dir_string, ' 1']);
-		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]) = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output);
+		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
+			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_dir_string, ' 1']);
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data_orig = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data;
 		% mask out the FF/255 bins, as these are not used for each
 		% respective direction
 		FF_idx = find(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data == 1023);
@@ -288,8 +343,9 @@ if (process_deltaQLN)
 	for i_dir = 1:length(direction_list)
 		cur_dir = direction_list(i_dir);
 		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_dir_string, ' 1']);
-		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]) = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output);
+		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
+			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_dir_string, ' 1']);
+		current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data_orig = current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data;
 		% mask out the FF/255 bins, as these are not used for each
 		% respective direction
 		FF_idx = find(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).Data == 255);
@@ -423,7 +479,9 @@ switch in_Format
 		end
 		out_struct.Data_xvec = (1:1:length(out_struct.Data)) - 1;
 		
-	case {'(nGroupIndex(dec),nSnr(dec))', '(nToneIndex(dec),nHlog(dec))', '(nToneIndex(dec),nBit(hex))', '(nToneIndex(dec),nQln(dec))'}
+	case {'(nGroupIndex(dec),nSnr(dec))', '(nToneIndex(dec),nHlog(dec))', ...
+			'(nToneIndex(dec),nBit(hex))', '(nToneIndex(dec),nQln(dec))', ...
+			'(nToneIndex(dec),nGain(hex))'}
 		% extract the Format information
 		[first, second] = strtok(in_Format, ',');
 		[out_struct.Data_xvec_name, proto_type] = strtok(first(2:end), '(');
@@ -453,6 +511,15 @@ switch in_Format
 					error(['Encountered unknown Data_type: ', out_struct.Data_type]);
 			end
 		end
+		% 
+		if isfield(out_struct, 'GroupSize')
+			% grouped data is basically binned, so return the center bin
+			% for each group
+			out_struct.Data_xvec_orig = out_struct.Data_xvec;
+			out_struct.Data_xvec_groupcentered = (out_struct.Data_xvec * out_struct.GroupSize) + (out_struct.GroupSize * 0.5);
+			out_struct.Data_xvec = out_struct.Data_xvec_groupcentered;
+		end
+		
 	otherwise
 		error(['Encountered unhandled format string: ', in_Format]);
 end
@@ -470,7 +537,7 @@ quoted_string = [' '' ', string, ' '' '];
 return
 end
 
-function [ ssh_status, dsl_cmd_output_string ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg_struct, dsl_sub_cmd_string, dsl_sub_cmd_arg_string )
+function [ ssh_status, dsl_cmd_output_string, parsed_dsl_output_struct ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg_struct, dsl_sub_cmd_string, dsl_sub_cmd_arg_string )
 
 dsl_cmd_output_string = [];
 
@@ -492,10 +559,10 @@ end
 lantig_dsl_cmd_string = fn_single_quote_string([ssh_dsl_cfg_struct.lantig_dsl_cmd_prefix, ' ', dsl_sub_cmd_string, ' ', dsl_sub_cmd_arg_string]);
 [ssh_status, dsl_cmd_output_string] = system([ssh_dsl_cfg_struct.ssh_command_stem, ' ', fn_single_quote_string([ssh_dsl_cfg_struct.lantig_dsl_cmd_prefix, ' ', dsl_sub_cmd_string, ' ', dsl_sub_cmd_arg_string])]);
 
-tmp.(dsl_sub_cmd_string) = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output_string);
+parsed_dsl_output_struct = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output_string);
 % check nReturn, if not 0 display error message
-if isfield(tmp.(dsl_sub_cmd_string), 'Return')
-	ret_val = tmp.(dsl_sub_cmd_string).Return;
+if isfield(parsed_dsl_output_struct, 'Return')
+	ret_val = parsed_dsl_output_struct.Return;
 	if (ret_val ~= 0)
 		disp(['Calling ', lantig_dsl_cmd_string, ' resulted in non-zero return value']);
 		if ~isempty(regexp(dsl_cmd_output_string, 'wrong number of parameters'))
@@ -505,6 +572,25 @@ if isfield(tmp.(dsl_sub_cmd_string), 'Return')
 else
 	% the help command does not return nReturn
 end
+
+% some command return unscaled data, so scale according to T-REC-G.997.1-201902
+parsed_dsl_output_struct.Data_orig = parsed_dsl_output_struct.Data;
+switch dsl_sub_cmd_string
+	case {'g997gansg', 'g997gang'}
+		% T-REC-G.997.1-201902: 7.5.1.29.3 Downstream gains allocation (GAINSpsds)
+		% This parameter specifies the downstream gains allocation table per subcarrier. It is an array of 
+		% integer values in the 0 to 4 093 range for subcarriers 0 to NSds. The gain value is represented 
+		% as a multiple of 1/512 on linear scale. The same GAINSpsds format shall be applied to ITU-T G.992.3 
+		% and ITU-T G.992.5 Annex C FEXT GAINSpsds and NEXT GAINSpsds.
+		% The reported gains of subcarriers out of the downstream MEDLEY set shall be set to 0.
+		% This parameter shall be reported with the most recent values when read over the Q-interface.
+		parsed_dsl_output_struct.Data = parsed_dsl_output_struct.Data / 512;
+
+		
+		
+	otherwise
+end	
+
 
 return
 end
