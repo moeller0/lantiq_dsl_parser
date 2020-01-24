@@ -1,4 +1,4 @@
-function [ output_args ] = lantiq_dsl_parser( input_args )
+function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
 %LANTIQ_DSL_PARSER Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -7,8 +7,8 @@ function [ output_args ] = lantiq_dsl_parser( input_args )
 %		still needs for for the fixed 512 value sets
 %	add textual summary and error statistics page
 %	find G.INP RTX counter?
-%	separate data acquisition and plotting
-%	save out plots and data
+%	separate data acquisition and plotting WIP
+%	save out plots and data WIP
 %	allow to read from precanned text captures of dsl_cmd output
 %	collect statistics over collected per bin data (min, max, mode, ...)
 
@@ -17,16 +17,19 @@ function [ output_args ] = lantiq_dsl_parser( input_args )
 % generate one page subplot, with deltaSNR, bitallocation, HLOG and
 % deltaQLN and add saving code
 
+% either collect, store and process data, or load and process data
+load_data = 1;
+
 
 process_bitallocation = 1;
-process_bitallocation2 = 0;
-process_gainallocation = 0;
-process_gainallocation2 = 0;
-process_snrallocation = 0;
-process_snrallocation2 = 0;
-process_deltaSNR = 0;
-process_deltaHLOG = 0;
-process_deltaQLN = 0;
+process_bitallocation2 = 1;
+process_gainallocation = 1;
+process_gainallocation2 = 1;
+process_snrallocation = 1;
+process_snrallocation2 = 1;
+process_deltaSNR = 1;
+process_deltaHLOG = 1;
+process_deltaQLN = 1;
 
 plot_combined = 1;
 DefaultPaperSizeType = 'A4';
@@ -47,15 +50,28 @@ updir_string = num2str(updir);
 downdir = 1;
 downdir_string = num2str(downdir);
 
+deltdatatype_list = [1]; % zero seems to be not in use
+deltdatatype_string = num2str(deltdatatype_list(1));
+
+channel_list = [0];
+channel_string = num2str(channel_list(1))
+
+
 bit_color_up = [0 1 0];
 bit_color_down = [0 0 1];
 snr_color_up = [0 0.66 0];
 snr_color_down = [254 233 23]/255;
 
+out_format = 'pdf';
+%out_format = 'png';
 
+mat_prefix = 'lantiq_dsl_data';
+out_dir = fullfile(pwd, out_format);
+mat_save_dir = fullfile(pwd, 'dsl_cmd_run_data');
+if ~isdir(mat_save_dir)
+	mkdir(mat_save_dir);
+end
 
-
-current_dsl_struct = struct();
 
 %ssh root@192.168.100.1 '. /lib/functions/lantiq_dsl.sh ; dsl_cmd g997racg 0 0'
 ssh_dsl_cfg.lantiq_IP = '192.168.100.1';
@@ -66,73 +82,104 @@ dsl_sub_cmd_arg_string = [];
 
 
 
-% get the list of all supported commands:
-%[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, dsl_sub_cmd_arg_string );
-[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, 'help', dsl_sub_cmd_arg_string );
-if (ssh_status == 0)
-	tmp_list = strsplit(dsl_cmd_output);
-	tmp_list(1) = [];
-	num_subcmds_and_names = size(tmp_list, 2);
-	subcmd_list = tmp_list((1:2:num_subcmds_and_names-1));
-	subcmd_list = regexprep(subcmd_list, ',$', '');	%remove trailing comata
-	subcmd_names_list  = tmp_list((2:2:num_subcmds_and_names));
-end
-%TODO get the number and names of the required arguments for each sub
-%command
 
-% % G.INP:
-% lfcg 1 0
-% lfcg 1 1
-% lfsg 0
-% lfsg 1
-% osg 0 bitswap stat
-% ptsg,          PilotTonesStatusGet
-
-
-current_datetime = datestr(now, 'yyyyMMddTHHmmss');
-out_format = 'pdf';
-%out_format = 'png';
-out_dir = fullfile(pwd, out_format);
-
-
-% DATA collection
-% zero ARG commands:
-zero_arg_sub_cmd_string_list = {'vig', 'vpcg', 'ptsg'};
-for i_zero_arg_sub_cmd_string = 1 : length(zero_arg_sub_cmd_string_list)
-	dsl_sub_cmd_string = zero_arg_sub_cmd_string_list{i_zero_arg_sub_cmd_string};
-	[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string)] = ...
-		fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, []);	
-	current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-end
-
-% commands with one argument: Direction
-single_arg_sub_cmd_string_list = {'osg', 'g997bansg'}
-for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
-	dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
-	for i_dir = 1:length(direction_list)
-		cur_dir = direction_list(i_dir);
-		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
-			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
+if ~(load_data)
+	current_dsl_struct = struct();
+	
+	current_datetime = datestr(now, 'yyyyMMddTHHmmss');
+	current_dsl_struct.current_datetime = current_datetime;
+	
+	
+	% get the list of all supported commands:
+	%[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, dsl_sub_cmd_arg_string );
+	[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, 'help', dsl_sub_cmd_arg_string );
+	if (ssh_status == 0)
+		tmp_list = strsplit(dsl_cmd_output);
+		tmp_list(1) = [];
+		num_subcmds_and_names = size(tmp_list, 2);
+		current_dsl_struct.subcmd_list = tmp_list((1:2:num_subcmds_and_names-1));
+		current_dsl_struct.subcmd_list = regexprep(current_dsl_struct.subcmd_list, ',$', '');	%remove trailing comata
+		current_dsl_struct.subcmd_names_list  = tmp_list((2:2:num_subcmds_and_names));
 	end
-	current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
+	
+	% DATA collection
+	% zero ARG commands: dsmstatg, bpsg cause issues
+	zero_arg_sub_cmd_string_list = {'vig', 'vpcg', 'ptsg', 'dsmsg', 'dsmcg', 'bpstg'};
+	for i_zero_arg_sub_cmd_string = 1 : length(zero_arg_sub_cmd_string_list)
+		dsl_sub_cmd_string = zero_arg_sub_cmd_string_list{i_zero_arg_sub_cmd_string};
+		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string)] = ...
+			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, []);
+		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+	end
+	
+	% commands with one argument: Direction
+	% g997listrg cause issues
+	single_arg_sub_cmd_string_list = {'osg', 'g997bansg', 'g997bang', 'g997gansg', 'g997gang', 'g997sansg', 'g997sang', 'lfsg', 'g997lspbg', ...
+		'g997lig', 'g997ansg', 'g997listrg'};
+	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
+		dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
+		for i_dir = 1:length(direction_list)
+			cur_dir = direction_list(i_dir);
+			cur_dir_string = [num2str(cur_dir)];
+			[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
+				fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
+		end
+		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+	end
+	
+	% commands with two arguments: Direction and DeltDataType
+	dual_arg_sub_cmd_string_list = {'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'g997lsg','dsnrg' };
+	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
+		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+		for i_dir = 1:length(direction_list)
+			cur_dir = direction_list(i_dir);
+			cur_dir_string = [num2str(cur_dir)];
+			
+			for i_deltdatatype = 1 : length(deltdatatype_list)
+				cur_deltdatatype = deltdatatype_list(i_deltdatatype);
+				cur_arg_string = [cur_dir_string, ' ', num2str(cur_deltdatatype)];
+				[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).(['DeltDataType_', num2str(cur_deltdatatype)])] = ...
+					fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_arg_string);
+			end
+		end
+		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+	end
+	
+	% commands with two arguments: Channel and Direction
+	dual_arg_sub_cmd_string_list = {'g997fpsg', 'g997csg', 'fpsg', 'g997cdrtcg'};
+	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
+		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+		
+		for i_chan = 1: length(channel_list)
+			cur_chan = channel_list(i_chan);
+			cur_chan_string = [num2str(cur_chan)];
+			for i_dir = 1:length(direction_list)
+				cur_dir = direction_list(i_dir);
+				cur_dir_string = [num2str(cur_dir)];
+				[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Channel_', cur_chan_string]).(['Direction_', cur_dir_string])] = ...
+					fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_chan_string, ' ', cur_dir_string]);
+			end
+			
+		end
+		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+	end
+	% save data out
+	disp(['Saving data to ', fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat'])]);
+	save(fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat']), 'current_dsl_struct');
+	
+else
+	% load data instead
+	[lantiq_dsl_data_file_name, lantiq_dsl_data_file_dir] = uigetfile({[mat_prefix, '.*.mat']}, 'Select the lantig dsl data file');
+	lantiq_dsl_data_file_FQN = fullfile(lantiq_dsl_data_file_dir, lantiq_dsl_data_file_name);
+	disp(['Loading ', lantiq_dsl_data_file_FQN]);
+	load(lantiq_dsl_data_file_FQN);
 end
-
 
 
 if (process_bitallocation)
 	% g997bansg DIRECTION: 997_BitAllocationNscShortGet
 	dsl_sub_cmd_string = 'g997bansg';
 	
-% 	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
-% 	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-% 	
-% 	for i_dir = 1:length(direction_list)
-% 		cur_dir = direction_list(i_dir);
-% 		cur_dir_string = [num2str(cur_dir)];
-% 		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
-% 			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-% 	end
 	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
 	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
 	
@@ -148,28 +195,19 @@ if (process_bitallocation)
 	xlabel('Bin');
 	title({[current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name, '; Up: ', num2str(n_bits_upload/1000), ' kbit; Down: ', num2str(n_bits_download/1000), ' kbit']; ...
 		['Up: ', num2str(n_bits_upload*4/1000), ' Mbps; Down: ', num2str(n_bits_download*4/1000), ' Mbps']}, 'Interpreter', 'None');
-	set(gca(), 'XLim', [0 current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).NumData]);
+	set(gca(), 'XLim', [0 current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).NumData]);
 	
-	write_out_figure(g997bansg_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	write_out_figure(g997bansg_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 if (process_bitallocation2)
 	% g997bansg DIRECTION: 997_BitAllocationNscShortGet
 	dsl_sub_cmd_string = 'g997bang';
 	
-	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
-	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-	
-	for i_dir = 1:length(direction_list)
-		cur_dir = direction_list(i_dir);
-		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
-			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-	end
 	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
 	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
 	
-	g997bang_fh = figure('Name', dsl_sub_cmd_name);
+	g997bang_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
 	% plot the bit allocations over bin, green for upload, blue for download (just copy the colors from AVM)
 	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'EdgeColor', bit_color_up, 'FaceColor', bit_color_up);
@@ -181,29 +219,19 @@ if (process_bitallocation2)
 	%x_max = size(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 2) * current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).GroupSize;
 	set(gca(), 'XLim', [0 4096]);
 	%get(gca(), 'XLim')
-
+	
 	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
 	xlabel('Bin');
-	title({[dsl_sub_cmd_name, '; Up: ', num2str(n_bits_upload/1000), ' kbit; Down: ', num2str(n_bits_download/1000), ' kbit']; ...
+	title({[current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name, '; Up: ', num2str(n_bits_upload/1000), ' kbit; Down: ', num2str(n_bits_download/1000), ' kbit']; ...
 		['Up: ', num2str(n_bits_upload*4/1000), ' Mbps; Down: ', num2str(n_bits_download*4/1000), ' Mbps']}, 'Interpreter', 'None');
-	write_out_figure(g997bang_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	write_out_figure(g997bang_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 
 if (process_gainallocation)
 	dsl_sub_cmd_string = 'g997gansg';
 	
-	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
-	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-	
-	for i_dir = 1:length(direction_list)
-		cur_dir = direction_list(i_dir);
-		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
-			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-	end
-	
-	g997gansg_fh = figure('Name', dsl_sub_cmd_name);
+	g997gansg_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
 	% plot the bit allocations over bin, green for upload, blue for download (just copy the colors from AVM)
 	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'EdgeColor', bit_color_up, 'FaceColor', bit_color_up);
@@ -213,25 +241,15 @@ if (process_gainallocation)
 	%set(gca(), 'YLim', [0 16]);
 	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
 	xlabel('Bin');
-	title([dsl_sub_cmd_name], 'Interpreter', 'None');
-	set(gca(), 'XLim', [0 current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).NumData]);
-	write_out_figure(g997gansg_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	title([current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name], 'Interpreter', 'None');
+	set(gca(), 'XLim', [0 current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).NumData]);
+	write_out_figure(g997gansg_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 if (process_gainallocation2)
 	dsl_sub_cmd_string = 'g997gang';
 	
-	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
-	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-	
-	for i_dir = 1:length(direction_list)
-		cur_dir = direction_list(i_dir);
-		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
-			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-	end
-	
-	g997gang_fh = figure('Name', dsl_sub_cmd_name);
+	g997gang_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
 	% plot the bit allocations over bin, green for upload, blue for download (just copy the colors from AVM)
 	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'EdgeColor', bit_color_up, 'FaceColor', bit_color_up);
@@ -241,8 +259,8 @@ if (process_gainallocation2)
 	%set(gca(), 'YLim', [0 16]);
 	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
 	xlabel('Bin');
-	title([dsl_sub_cmd_name], 'Interpreter', 'None');
-	write_out_figure(g997gang_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	title([current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name], 'Interpreter', 'None');
+	write_out_figure(g997gang_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 
@@ -250,16 +268,7 @@ if (process_snrallocation)
 	% 	onlt 512 bins, but covering the whole frequency range (so one value for every 8 sub-carriers)
 	dsl_sub_cmd_string = 'g997sansg';
 	
-	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
-	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-	
-	for i_dir = 1:length(direction_list)
-		cur_dir = direction_list(i_dir);
-		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-	end
-	
-	g997sansg_fh = figure('Name', dsl_sub_cmd_name);
+	g997sansg_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
 	% plot the bit allocations over bin, green for upload, blue for download (just copy the colors from AVM)
 	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'EdgeColor', snr_color_up, 'FaceColor', snr_color_up);
@@ -269,25 +278,16 @@ if (process_snrallocation)
 	%set(gca(), 'YLim', [0 16]);
 	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
 	xlabel('Bin');
-	title([dsl_sub_cmd_name], 'Interpreter', 'None');
-	set(gca(), 'XLim', [0 current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).NumData]);
-	write_out_figure(g997sansg_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	title([current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name], 'Interpreter', 'None');
+	set(gca(), 'XLim', [0 current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).NumData]);
+	write_out_figure(g997sansg_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 if (process_snrallocation2)
 	% 	onlt 512 bins, but covering the whole frequency range (so one value for every 8 sub-carriers)
 	dsl_sub_cmd_string = 'g997sang';
 	
-	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
-	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-	
-	for i_dir = 1:length(direction_list)
-		cur_dir = direction_list(i_dir);
-		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
-	end
-	
-	g997sang_fh = figure('Name', dsl_sub_cmd_name);
+	g997sang_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
 	% plot the bit allocations over bin, green for upload, blue for download (just copy the colors from AVM)
 	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'EdgeColor', snr_color_up, 'FaceColor', snr_color_up);
@@ -297,8 +297,8 @@ if (process_snrallocation2)
 	%set(gca(), 'YLim', [0 16]);
 	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
 	xlabel('Bin');
-	title([dsl_sub_cmd_name], 'Interpreter', 'None');
-	write_out_figure(g997sang_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	title([current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name], 'Interpreter', 'None');
+	write_out_figure(g997sang_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 if (process_deltaSNR)
@@ -306,35 +306,26 @@ if (process_deltaSNR)
 	% 	for nDeltDataType
 	dsl_sub_cmd_string = 'g997dsnrg';
 	
-	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
-	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-	
-	for i_dir = 1:length(direction_list)
-		cur_dir = direction_list(i_dir);
-		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
-			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_dir_string, ' 1']);
-	end
-	
-	g997dsnrg_fh = figure('Name', dsl_sub_cmd_name);
+	g997dsnrg_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
 	% plot the bit allocations over bin, green for upload, blue for download (just copy the colors from AVM)
-	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'EdgeColor', snr_color_up, 'FaceColor', snr_color_up);
+	ARG2 = ['DeltDataType_', deltdatatype_string];
+	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data, 'EdgeColor', snr_color_up, 'FaceColor', snr_color_up);
 	hold on
-	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 'EdgeColor', snr_color_down, 'FaceColor', snr_color_down);
+	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data, 'EdgeColor', snr_color_down, 'FaceColor', snr_color_down);
 	hold off
 	
-	max_y = max(max(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data(:)),max(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data(:)));
+	max_y = max(max(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data(:)),max(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data(:)));
 	set(gca(), 'YLim', [20 ceil(max_y/5)*5]);
 	
-	x_max = size(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 2) * current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).GroupSize;
+	x_max = size(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data, 2) * current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).GroupSize;
 	set(gca(), 'XLim', [0 x_max]);
 	set(gca(), 'XLim', [0 4096]);
 	
-	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
+	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data_name);
 	xlabel('Bin');
-	title([dsl_sub_cmd_name], 'Interpreter', 'None');
-	write_out_figure(g997dsnrg_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	title([current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name], 'Interpreter', 'None');
+	write_out_figure(g997dsnrg_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 if (process_deltaHLOG)
@@ -342,32 +333,23 @@ if (process_deltaHLOG)
 	% 	for nDeltDataType
 	dsl_sub_cmd_string = 'g997dhlogg';
 	
-	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
-	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-	
-	for i_dir = 1:length(direction_list)
-		cur_dir = direction_list(i_dir);
-		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
-			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_dir_string, ' 1']);
-	end
-	
-	g997dhlogg_fh = figure('Name', dsl_sub_cmd_name);
+	g997dhlogg_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
 	% plot the bit allocations over bin, green for upload, blue for download (just copy the colors from AVM)
-	%bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'EdgeColor', bit_color_up, 'FaceColor', bit_color_up);
-	plot(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'Color', bit_color_up);
+	%bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data, 'EdgeColor', bit_color_up, 'FaceColor', bit_color_up);
+	ARG2 = ['DeltDataType_', deltdatatype_string];
+	plot(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data, 'Color', bit_color_up);
 	hold on
-	%bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 'EdgeColor', bit_color_down, 'FaceColor', bit_color_down);
-	plot(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 'Color', bit_color_down);
+	%bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data, 'EdgeColor', bit_color_down, 'FaceColor', bit_color_down);
+	plot(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data, 'Color', bit_color_down);
 	hold off
 	%set(gca(), 'YLim', [0 16]);
-	x_max = size(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 2) * current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).GroupSize;
+	x_max = size(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data, 2) * current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).GroupSize;
 	set(gca(), 'XLim', [0 x_max]);
-	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
+	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data_name);
 	xlabel('Bin');
-	title([dsl_sub_cmd_name], 'Interpreter', 'None');
-	write_out_figure(g997dhlogg_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	title([current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name], 'Interpreter', 'None');
+	write_out_figure(g997dhlogg_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 
@@ -376,75 +358,66 @@ if (process_deltaQLN)
 	% 	for nDeltDataType
 	dsl_sub_cmd_string = 'g997dqlng';
 	
-	% find dsl_sub_cmd_string in subcmd_list and get the nmae from the matching position in subcmd_names_list
-	dsl_sub_cmd_name = subcmd_names_list{find(strcmp(dsl_sub_cmd_string, subcmd_list))};
-	
-	for i_dir = 1:length(direction_list)
-		cur_dir = direction_list(i_dir);
-		cur_dir_string = [num2str(cur_dir)];
-		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
-			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_dir_string, ' 1']);
-	end
-	
-	g997dqlng_fh = figure('Name', dsl_sub_cmd_name);
+	g997dqlng_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
 	% plot the bit allocations over bin, green for upload, blue for download (just copy the colors from AVM)
-	%bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'EdgeColor', bit_color_up, 'FaceColor', bit_color_up);
-	plot(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data, 'Color', bit_color_up);
+	%bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data, 'EdgeColor', bit_color_up, 'FaceColor', bit_color_up);
+	ARG2 = ['DeltDataType_', deltdatatype_string];
+	plot(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data, 'Color', bit_color_up);
 	hold on
-	%bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 'EdgeColor', bit_color_down, 'FaceColor', bit_color_down);
-	plot(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 'Color', bit_color_down);
+	%bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data, 'EdgeColor', bit_color_down, 'FaceColor', bit_color_down);
+	plot(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data, 'Color', bit_color_down);
 	
 	hold off
 	%set(gca(), 'YLim', [0 16]);
-	x_max = size(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data, 2) * current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).GroupSize;
+	x_max = size(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data, 2) * current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).GroupSize;
 	set(gca(), 'XLim', [0 x_max]);
-	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
+	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data_name);
 	xlabel('Bin');
-	title([dsl_sub_cmd_name], 'Interpreter', 'None');
-	write_out_figure(g997dqlng_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	title([current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name], 'Interpreter', 'None');
+	write_out_figure(g997dqlng_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 % construct summary figure
 
 if (plot_combined)
-		combined_SNR_BitAllocation_fh = figure('Name', ['SNR and Bit Allocation by sub-carrier: ', current_datetime], 'visible', figure_visibility_string);
-		%fnFormatDefaultAxes(DefaultAxesType);
-		[output_rect] = fnFormatPaperSize(DefaultPaperSizeType, gcf, output_rect_fraction);
-		set(combined_SNR_BitAllocation_fh, 'Units', 'centimeters', 'Position', output_rect, 'PaperPosition', output_rect);
-
-		% G997_DeltSNRGet
-		g997dsnrg_ah = findobj('Parent', g997dsnrg_fh, 'Type','axes');
-		g997dsnrg_axh = copyobj(g997dsnrg_ah, combined_SNR_BitAllocation_fh);
-		subplot(2,1,1, g997dsnrg_axh);
+	combined_SNR_BitAllocation_fh = figure('Name', ['SNR and Bit Allocation by sub-carrier: ', current_dsl_struct.current_datetime], 'visible', figure_visibility_string);
+	%fnFormatDefaultAxes(DefaultAxesType);
+	[output_rect] = fnFormatPaperSize(DefaultPaperSizeType, gcf, output_rect_fraction);
+	set(combined_SNR_BitAllocation_fh, 'Units', 'centimeters', 'Position', output_rect, 'PaperPosition', output_rect);
 	
-		% G997_BitAllocationNscGet
-		g997bang_ah = findobj('Parent', g997bang_fh, 'Type','axes');
-		g997bang_axh = copyobj(g997bang_ah, combined_SNR_BitAllocation_fh);
-		subplot(2,1,2, g997bang_axh);
-
-		dsl_sub_cmd_string = 'combined_SNR_BitAllocation';
-		write_out_figure(combined_SNR_BitAllocation_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
-
-		
-		
-		combined_HLOG_QLN_fh = figure('Name', ['HLOG and QLN by sub-carrier: ', current_datetime], 'visible', figure_visibility_string);
-		%fnFormatDefaultAxes(DefaultAxesType);
-		[output_rect] = fnFormatPaperSize(DefaultPaperSizeType, gcf, output_rect_fraction);
-		set(combined_HLOG_QLN_fh, 'Units', 'centimeters', 'Position', output_rect, 'PaperPosition', output_rect);
-
-		% G997_DeltHLOGGet
-		g997dhlogg_ah = findobj('Parent', g997dhlogg_fh, 'Type','axes');
-		g997dhlogg_axh = copyobj(g997dhlogg_ah, combined_HLOG_QLN_fh);
-		subplot(2,1,1, g997dhlogg_axh);
-
-		% G997_DeltQLNGet
-		g997dqlng_ah = findobj('Parent', g997dqlng_fh, 'Type','axes');
-		g997dqlng_axh = copyobj(g997dqlng_ah, combined_HLOG_QLN_fh);
-		subplot(2,1,2, g997dqlng_axh);
-
-		dsl_sub_cmd_string = 'combined_HLOG_QLN';
-		write_out_figure(combined_HLOG_QLN_fh, fullfile(out_dir, [current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	% G997_DeltSNRGet
+	g997dsnrg_ah = findobj('Parent', g997dsnrg_fh, 'Type','axes');
+	g997dsnrg_axh = copyobj(g997dsnrg_ah, combined_SNR_BitAllocation_fh);
+	subplot(2,1,1, g997dsnrg_axh);
+	
+	% G997_BitAllocationNscGet
+	g997bang_ah = findobj('Parent', g997bang_fh, 'Type','axes');
+	g997bang_axh = copyobj(g997bang_ah, combined_SNR_BitAllocation_fh);
+	subplot(2,1,2, g997bang_axh);
+	
+	dsl_sub_cmd_string = 'combined_SNR_BitAllocation';
+	write_out_figure(combined_SNR_BitAllocation_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
+	
+	
+	
+	combined_HLOG_QLN_fh = figure('Name', ['HLOG and QLN by sub-carrier: ', current_dsl_struct.current_datetime], 'visible', figure_visibility_string);
+	%fnFormatDefaultAxes(DefaultAxesType);
+	[output_rect] = fnFormatPaperSize(DefaultPaperSizeType, gcf, output_rect_fraction);
+	set(combined_HLOG_QLN_fh, 'Units', 'centimeters', 'Position', output_rect, 'PaperPosition', output_rect);
+	
+	% G997_DeltHLOGGet
+	g997dhlogg_ah = findobj('Parent', g997dhlogg_fh, 'Type','axes');
+	g997dhlogg_axh = copyobj(g997dhlogg_ah, combined_HLOG_QLN_fh);
+	subplot(2,1,1, g997dhlogg_axh);
+	
+	% G997_DeltQLNGet
+	g997dqlng_ah = findobj('Parent', g997dqlng_fh, 'Type','axes');
+	g997dqlng_axh = copyobj(g997dqlng_ah, combined_HLOG_QLN_fh);
+	subplot(2,1,2, g997dqlng_axh);
+	
+	dsl_sub_cmd_string = 'combined_HLOG_QLN';
+	write_out_figure(combined_HLOG_QLN_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
 % close all figues?
@@ -490,6 +463,10 @@ while (keep_parsing)
 	if strcmp(cur_struct_key(1), 'n')
 		cur_struct_key(1) = [];
 	end
+	% get rid of taboo characters in the key name so that the key can be
+	% turned into a matlab structure fieldname
+	cur_struct_key = sanitize_name_for_matlab(cur_struct_key);
+	
 	% remove the now trailing key_value_separator
 	if strcmp(unprocessed_string(1), key_value_separator)
 		unprocessed_string(1) = [];
@@ -584,14 +561,9 @@ switch in_Format
 					error(['Encountered unknown Data_type: ', out_struct.Data_type]);
 			end
 		end
-		%
-		% 		if isfield(out_struct, 'GroupSize')
-		% 			% grouped data is basically binned, so return the center bin
-		% 			% for each group
-		% 			out_struct.Data_xvec_orig = out_struct.Data_xvec;
-		% 			out_struct.Data_xvec_groupcentered = (out_struct.Data_xvec * out_struct.GroupSize) + (out_struct.GroupSize * 0.5);
-		% 			out_struct.Data_xvec = out_struct.Data_xvec_groupcentered;
-		% 		end
+	case {'(nBandPlan(dec),nProfile(dec),bSupported(dec))'}
+		% required for bpsg
+		error('Not supported yet');
 		
 	otherwise
 		error(['Encountered unhandled format string: ', in_Format]);
@@ -634,9 +606,18 @@ lantig_dsl_cmd_string = fn_single_quote_string([ssh_dsl_cfg_struct.lantig_dsl_cm
 disp(['fn_call_dsl_cmd_via_ssh: ', lantig_dsl_cmd_string]);
 [ssh_status, dsl_cmd_output_string] = system([ssh_dsl_cfg_struct.ssh_command_stem, ' ', fn_single_quote_string([ssh_dsl_cfg_struct.lantig_dsl_cmd_prefix, ' ', dsl_sub_cmd_string, ' ', dsl_sub_cmd_arg_string])]);
 
-parsed_dsl_output_struct = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output_string);
 parsed_dsl_output_struct.dsl_sub_cmd_string = dsl_sub_cmd_string;
 parsed_dsl_output_struct.dsl_sub_cmd_arg_string = dsl_sub_cmd_arg_string;
+
+% this currently is incompatible with the parser
+if strcmp(dsl_sub_cmd_string, 'g997listrg')
+	parsed_dsl_output_struct.input_string = dsl_cmd_output_string;
+	disp('g997listrg: parser incompatible, just returning the dsl_cmd_output_string as .input_string for now');
+	return
+end
+
+
+parsed_dsl_output_struct = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output_string);
 % check nReturn, if not 0 display error message
 if isfield(parsed_dsl_output_struct, 'Return')
 	ret_val = parsed_dsl_output_struct.Return;
@@ -681,7 +662,7 @@ if isfield(parsed_dsl_output_struct, 'Data')
 			parsed_dsl_output_struct.Data = (parsed_dsl_output_struct.Data * 0.5) - 32;
 			parsed_dsl_output_struct.Data(parsed_dsl_output_struct.ignore_bin_idx) = 0;
 			parsed_dsl_output_struct.Data_name = [parsed_dsl_output_struct.Data_name(2:end), ' [dB]'];
-
+			
 		case 'g997dhlogg'
 			parsed_dsl_output_struct.ignore_bin_marker = 1023;
 			parsed_dsl_output_struct.ignore_bin_idx = find(parsed_dsl_output_struct.Data == parsed_dsl_output_struct.ignore_bin_marker);
@@ -710,11 +691,11 @@ if isfield(parsed_dsl_output_struct, 'Data')
 			parsed_dsl_output_struct.Data = -23 - (parsed_dsl_output_struct.Data / 2);
 			parsed_dsl_output_struct.Data(parsed_dsl_output_struct.ignore_bin_idx) = NaN;
 			parsed_dsl_output_struct.Data_name = [parsed_dsl_output_struct.Data_name(2:end), ' [dB, ref 1mW/Hz]'];
-
+			
 			
 		case {'g997bang', 'g997bansg'}
 			parsed_dsl_output_struct.Data_name = parsed_dsl_output_struct.Data_name(2:end);
-
+			
 		otherwise
 			% nothing to do
 	end
@@ -726,7 +707,7 @@ if isfield(parsed_dsl_output_struct, 'Data')
 				parsed_dsl_output_struct.Data_xvec_orig = parsed_dsl_output_struct.Data_xvec;
 				parsed_dsl_output_struct.Data_xvec_groupcentered = (parsed_dsl_output_struct.Data_xvec * parsed_dsl_output_struct.GroupSize) + (parsed_dsl_output_struct.GroupSize * 0.5);
 				parsed_dsl_output_struct.Data_xvec = parsed_dsl_output_struct.Data_xvec_groupcentered;
-			end		
+			end
 	end
 end
 
@@ -835,43 +816,82 @@ function [ output_rect ] = fnFormatPaperSize( type, gcf_h, fraction)
 %     [output_rect] = fnFormatPaperSize('16to9landscape', gcf);
 %     set(gcf(), 'Units', 'centimeters', 'Position', output_rect);
 if nargin < 3
-    fraction = 1;	% fractional columns?
+	fraction = 1;	% fractional columns?
 end
 
 switch type
-    case 'A4'
+	case 'A4'
 		left_edge_cm = 0.05;
 		bottom_edge_cm = 0.05;
 		A4_w_cm = 21.0;
 		A4_h_cm = 29.7;
-        rect_w = (A4_w_cm - 2*left_edge_cm) * fraction;
-        rect_h = ((A4_h_cm * 610/987) - 2*bottom_edge_cm) * fraction; % 610/987 approximates the golden ratio
+		rect_w = (A4_w_cm - 2*left_edge_cm) * fraction;
+		rect_h = ((A4_h_cm * 610/987) - 2*bottom_edge_cm) * fraction; % 610/987 approximates the golden ratio
 		output_rect = [left_edge_cm bottom_edge_cm rect_w rect_h];	% left, bottom, width, height
-        %output_rect = [1.0 2.0 27.7 12.0];
-        set(gcf_h, 'PaperSize', [rect_w+2*left_edge_cm*fraction rect_h+2*bottom_edge_cm*fraction], 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters');
-
+		%output_rect = [1.0 2.0 27.7 12.0];
+		set(gcf_h, 'PaperSize', [rect_w+2*left_edge_cm*fraction rect_h+2*bottom_edge_cm*fraction], 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters');
+		
 	case 'europe'
-        output_rect = [1.0 2.0 27.7 12.0];
-        set(gcf_h, 'PaperType', 'A4', 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
-        
-    case 'europe_portrait'
-        output_rect = [1.0 2.0 20.0 27.7];
-        set(gcf_h, 'PaperType', 'A4', 'PaperOrientation', 'portrait', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
-        
-    case 'default'
-        % letter 8.5 x 11 ", or 215.9 mm ? 279.4 mm
-        output_rect = [1.0 2.0 19.59 25.94];
-        set(gcf_h, 'PaperType', 'usletter', 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
-        
-    case 'default_portrait'
-        output_rect = [1.0 2.0 25.94 19.59];
-        set(gcf_h, 'PaperType', 'usletter', 'PaperOrientation', 'portrait', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
-        
-    otherwise
-        output_rect = [1.0 2.0 25.9 12.0];
-        set(gcf_h, 'PaperType', 'usletter', 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
+		output_rect = [1.0 2.0 27.7 12.0];
+		set(gcf_h, 'PaperType', 'A4', 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
+		
+	case 'europe_portrait'
+		output_rect = [1.0 2.0 20.0 27.7];
+		set(gcf_h, 'PaperType', 'A4', 'PaperOrientation', 'portrait', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
+		
+	case 'default'
+		% letter 8.5 x 11 ", or 215.9 mm ? 279.4 mm
+		output_rect = [1.0 2.0 19.59 25.94];
+		set(gcf_h, 'PaperType', 'usletter', 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
+		
+	case 'default_portrait'
+		output_rect = [1.0 2.0 25.94 19.59];
+		set(gcf_h, 'PaperType', 'usletter', 'PaperOrientation', 'portrait', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
+		
+	otherwise
+		output_rect = [1.0 2.0 25.9 12.0];
+		set(gcf_h, 'PaperType', 'usletter', 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters', 'PaperPosition', output_rect);
 end
 
 return
 end
 
+function [ sanitized_name ]  = sanitize_name_for_matlab( input_name )
+% some characters are not really helpful inside matlab variable names, so
+% replace them with something that should not cause problems
+taboo_char_list =		{' ', '-', '.', '=', '/', '[', ']'};
+replacement_char_list = {'_', '_', '_dot_', '_eq_', '_', '_', '_'};
+
+taboo_first_char_list = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+replacement_firts_char_list = {'Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'};
+
+sanitized_name = input_name;
+% check first character to not be a number
+taboo_first_char_idx = find(ismember(taboo_first_char_list, input_name(1)));
+if ~isempty(taboo_first_char_idx)
+	sanitized_name = [replacement_firts_char_list{taboo_first_char_idx}, input_name(2:end)];
+end
+
+
+
+for i_taboo_char = 1: length(taboo_char_list)
+	current_taboo_string = taboo_char_list{i_taboo_char};
+	current_replacement_string = replacement_char_list{i_taboo_char};
+	current_taboo_processed = 0;
+	remain = sanitized_name;
+	tmp_string = '';
+	while (~current_taboo_processed)
+		[token, remain] = strtok(remain, current_taboo_string);
+		tmp_string = [tmp_string, token, current_replacement_string];
+		if isempty(remain)
+			current_taboo_processed = 1;
+			% we add one superfluous replaceent string at the end, so
+			% remove that
+			tmp_string = tmp_string(1:end-length(current_replacement_string));
+		end
+	end
+	sanitized_name = tmp_string;
+end
+
+return
+end
