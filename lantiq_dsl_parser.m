@@ -18,7 +18,7 @@ function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
 % deltaQLN and add saving code
 
 % either collect, store and process data, or load and process data
-load_data = 1;
+load_data = 0;
 
 
 process_bitallocation = 1;
@@ -54,7 +54,8 @@ deltdatatype_list = [1]; % zero seems to be not in use
 deltdatatype_string = num2str(deltdatatype_list(1));
 
 channel_list = [0];
-channel_string = num2str(channel_list(1))
+%channel_string = num2str(channel_list(1));
+HistoryInterval_list = [0, 1, 2];
 
 
 bit_color_up = [0 1 0];
@@ -104,7 +105,7 @@ if ~(load_data)
 	
 	% DATA collection
 	% zero ARG commands: dsmstatg, bpsg cause issues
-	zero_arg_sub_cmd_string_list = {'vig', 'vpcg', 'ptsg', 'dsmsg', 'dsmcg', 'bpstg'};
+	zero_arg_sub_cmd_string_list = {'vig', 'vpcg', 'ptsg', 'dsmsg', 'dsmcg', 'bpstg', 'pmcg', 'pmlictg'};
 	for i_zero_arg_sub_cmd_string = 1 : length(zero_arg_sub_cmd_string_list)
 		dsl_sub_cmd_string = zero_arg_sub_cmd_string_list{i_zero_arg_sub_cmd_string};
 		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string)] = ...
@@ -112,10 +113,24 @@ if ~(load_data)
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
 	
+	% commands with one argument: HistoryInterval
+	% g997listrg cause issues
+	single_arg_sub_cmd_string_list = {'pmlicsg', 'pmlic1dg', 'pmlic15mg'};
+	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
+		dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
+		for i_HistoryInterval = 1:length(HistoryInterval_list)
+			cur_HistoryInterval = HistoryInterval_list(i_HistoryInterval);
+			cur_HistoryInterval_string = [num2str(cur_HistoryInterval)];
+			[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['HistoryInterval_', cur_HistoryInterval_string])] = ...
+				fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_HistoryInterval_string);
+		end
+		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+	end
+	
 	% commands with one argument: Direction
 	% g997listrg cause issues
 	single_arg_sub_cmd_string_list = {'osg', 'g997bansg', 'g997bang', 'g997gansg', 'g997gang', 'g997sansg', 'g997sang', 'lfsg', 'g997lspbg', ...
-		'g997lig', 'g997ansg', 'g997listrg'};
+		'g997lig', 'g997ansg', 'g997listrg', 'pmlsctg', 'pmlesctg'};
 	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
 		dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
 		for i_dir = 1:length(direction_list)
@@ -128,7 +143,7 @@ if ~(load_data)
 	end
 	
 	% commands with two arguments: Direction and DeltDataType
-	dual_arg_sub_cmd_string_list = {'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'g997lsg','dsnrg' };
+	dual_arg_sub_cmd_string_list = {'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'g997lsg','dsnrg'};
 	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
 		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
 		for i_dir = 1:length(direction_list)
@@ -145,8 +160,26 @@ if ~(load_data)
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
 	
+	% commands with two arguments: Direction and HistoryInterval
+	dual_arg_sub_cmd_string_list = {'pmlscsg', 'pmlsc1dg', 'pmlsc15mg', 'pmlescsg', 'pmlesc1dg', 'pmlesc15mg'};
+	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
+		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+		for i_dir = 1:length(direction_list)
+			cur_dir = direction_list(i_dir);
+			cur_dir_string = [num2str(cur_dir)];
+			
+			for i_HistoryInterval = 1 : length(HistoryInterval_list)
+				cur_HistoryInterval = HistoryInterval_list(i_HistoryInterval);
+				cur_arg_string = [cur_dir_string, ' ', num2str(cur_HistoryInterval)];
+				[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string]).(['HistoryInterval_', num2str(cur_HistoryInterval)])] = ...
+					fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_arg_string);
+			end
+		end
+		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+	end
+	
 	% commands with two arguments: Channel and Direction
-	dual_arg_sub_cmd_string_list = {'g997fpsg', 'g997csg', 'fpsg', 'g997cdrtcg'};
+	dual_arg_sub_cmd_string_list = {'g997fpsg', 'g997csg', 'fpsg', 'g997cdrtcg', 'pmcctg', 'pmdpctg'};
 	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
 		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
 		
@@ -163,6 +196,32 @@ if ~(load_data)
 		end
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
+	
+	% commands with three arguments: Channel and Direction and HistoryInterval
+	dual_arg_sub_cmd_string_list = {'pmdpcsg', 'pmdpc1dg', 'pmdpc15mg', 'pmccsg', 'pmcc1dg', 'pmcc15mg'};
+	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
+		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+		
+		for i_chan = 1: length(channel_list)
+			cur_chan = channel_list(i_chan);
+			cur_chan_string = [num2str(cur_chan)];
+			for i_dir = 1:length(direction_list)
+				cur_dir = direction_list(i_dir);
+				cur_dir_string = [num2str(cur_dir)];
+				for i_HistoryInterval = 1 : length(HistoryInterval_list)
+					cur_HistoryInterval = HistoryInterval_list(i_HistoryInterval);
+					cur_histint_string = num2str(cur_HistoryInterval);
+					
+					[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Channel_', cur_chan_string]).(['Direction_', cur_dir_string]).(['HistoryInterval_', num2str(cur_HistoryInterval)])] = ...
+						fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_chan_string, ' ', cur_dir_string, ' ', cur_histint_string]);
+				end
+			end
+			
+		end
+		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+	end
+	
+	
 	% save data out
 	disp(['Saving data to ', fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat'])]);
 	save(fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat']), 'current_dsl_struct');
@@ -170,6 +229,10 @@ if ~(load_data)
 else
 	% load data instead
 	[lantiq_dsl_data_file_name, lantiq_dsl_data_file_dir] = uigetfile({[mat_prefix, '.*.mat']}, 'Select the lantig dsl data file');
+	if (lantiq_dsl_data_file_name == 0)
+		disp('No lantiq dsl data file selected, exiting');
+		return
+	end
 	lantiq_dsl_data_file_FQN = fullfile(lantiq_dsl_data_file_dir, lantiq_dsl_data_file_name);
 	disp(['Loading ', lantiq_dsl_data_file_FQN]);
 	load(lantiq_dsl_data_file_FQN);
