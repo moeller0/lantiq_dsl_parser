@@ -79,7 +79,7 @@ dsl_sub_cmd_arg_string = [];
 
 % make octave write disp/error output to screen immediately
 if isoctave()
-	page_screen_output = 0;
+	more off
 end
 
 if ~(load_data)
