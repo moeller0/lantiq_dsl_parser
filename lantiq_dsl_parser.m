@@ -1,6 +1,9 @@
 function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
 %LANTIQ_DSL_PARSER Summary of this function goes here
 %   Detailed explanation goes here
+% This works with matlab and octave (modulo the combining of existing
+% plots), also octave saved mat-files are not readable by matlab (octave
+% can read matlab-mat files however).
 
 % TODO:
 %	scale the x_vecs correctly, by evaluating nGroupSize (WIP)
@@ -16,6 +19,10 @@ function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
 
 % generate one page subplot, with deltaSNR, bitallocation, HLOG and
 % deltaQLN and add saving code
+
+
+
+
 
 % either collect, store and process data, or load and process data
 load_data = 0;
