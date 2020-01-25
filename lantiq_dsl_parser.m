@@ -15,7 +15,7 @@ function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
 
 
 % either collect, store and process data, or load and process data
-load_data = 1;
+load_data = 0;
 
 process_bitallocation = 1;
 process_bitallocation2 = 1;
