@@ -2,30 +2,20 @@ function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
 %LANTIQ_DSL_PARSER Summary of this function goes here
 %   Detailed explanation goes here
 % This works with matlab and octave (modulo the combining of existing
-% plots), also octave saved mat-files are not readable by matlab (octave
-% can read matlab-mat files however).
+% plots)
 
 % TODO:
 %	scale the x_vecs correctly, by evaluating nGroupSize (WIP)
-%		still needs for for the fixed 512 value sets
+%		still needs for for the fixed 512 value sets?
 %	add textual summary and error statistics page
-%	find G.INP RTX counter?
-%	separate data acquisition and plotting WIP
-%	save out plots and data WIP
-%	allow to read from precanned text captures of dsl_cmd output
+%	allow to read from precanned text captures of dsl_cmd output?
 %	collect statistics over collected per bin data (min, max, mode, ...)
-
-% refactor plotting into its own function
-
-% generate one page subplot, with deltaSNR, bitallocation, HLOG and
-% deltaQLN and add saving code
-
-
+%	refactor plotting into its own function
 
 
 
 % either collect, store and process data, or load and process data
-load_data = 0;
+load_data = 1;
 
 process_bitallocation = 1;
 process_bitallocation2 = 1;
@@ -226,8 +216,12 @@ if ~(load_data)
 		
 	% save data out
 	disp(['Saving data to ', fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat'])]);
-	save(fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat']), 'current_dsl_struct');
 	
+	if isoctave()
+		 save(fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat']), 'current_dsl_struct', '-mat7-binary');
+	else
+		save(fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat']), 'current_dsl_struct');
+	end
 else
 	% load data instead
 	[lantiq_dsl_data_file_name, lantiq_dsl_data_file_dir] = uigetfile({[mat_prefix, '.*.mat']}, 'Select the lantig dsl data file');
