@@ -32,7 +32,7 @@ process_deltaHLOG = 1;
 process_deltaQLN = 1;
 
 plot_combined = 1;
-DefaultPaperSizeType = 'A4';
+DefaultPaperSizeType = 'A4_landscape';
 output_rect_fraction = 1/2.54; % matlab's print will interpret values as INCH even for PaperUnit centimeter specified figures...
 
 close_figures_at_end = 1;
@@ -57,7 +57,7 @@ channel_list = [0];
 %channel_string = num2str(channel_list(1));
 HistoryInterval_list = [0, 1, 2];
 
-
+% COLORS
 bit_color_up = [0 1 0];
 bit_color_down = [0 0 1];
 snr_color_up = [0 0.66 0];
@@ -80,8 +80,6 @@ ssh_dsl_cfg.lantig_user = 'root';
 ssh_dsl_cfg.lantig_dsl_cmd_prefix = '. /lib/functions/lantiq_dsl.sh ; dsl_cmd';
 ssh_dsl_cfg.ssh_command_stem = ['ssh ', ssh_dsl_cfg.lantig_user, '@', ssh_dsl_cfg.lantiq_IP];
 dsl_sub_cmd_arg_string = [];
-
-
 
 
 if ~(load_data)
@@ -115,7 +113,6 @@ if ~(load_data)
 	end
 	
 	% commands with one argument: HistoryInterval
-	% g997listrg cause issues
 	single_arg_sub_cmd_string_list = {'pmlicsg', 'pmlic1dg', 'pmlic15mg'};
 	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
 		dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
@@ -129,7 +126,6 @@ if ~(load_data)
 	end
 	
 	% commands with one argument: Direction
-	% g997listrg cause issues
 	single_arg_sub_cmd_string_list = {'osg', 'g997bansg', 'g997bang', 'g997gansg', 'g997gang', 'g997sansg', 'g997sang', 'lfsg', 'g997lspbg', ...
 		'g997lig', 'g997ansg', 'g997listrg', 'g997rasg', 'pmlsctg', 'pmlesctg'};
 	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
@@ -199,9 +195,9 @@ if ~(load_data)
 	end
 	
 	% commands with three arguments: Channel and Direction and HistoryInterval
-	dual_arg_sub_cmd_string_list = {'pmdpcsg', 'pmdpc1dg', 'pmdpc15mg', 'pmccsg', 'pmcc1dg', 'pmcc15mg'};
-	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
-		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+	triple_arg_sub_cmd_string_list = {'pmdpcsg', 'pmdpc1dg', 'pmdpc15mg', 'pmccsg', 'pmcc1dg', 'pmcc15mg'};
+	for i_dual_arg_sub_cmd_string = 1 : length(triple_arg_sub_cmd_string_list)
+		dsl_sub_cmd_string = triple_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
 		
 		for i_chan = 1: length(channel_list)
 			cur_chan = channel_list(i_chan);
@@ -221,8 +217,7 @@ if ~(load_data)
 		end
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
-	
-	
+		
 	% save data out
 	disp(['Saving data to ', fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat'])]);
 	save(fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat']), 'current_dsl_struct');
@@ -377,6 +372,14 @@ if (process_deltaSNR)
 	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data, 'EdgeColor', snr_color_up, 'FaceColor', snr_color_up);
 	hold on
 	bar(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data_xvec, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data, 'EdgeColor', snr_color_down, 'FaceColor', snr_color_down);
+	% plot pilot?
+	current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).GroupSize
+	if isfield(current_dsl_struct, 'ptsg') && isfield(current_dsl_struct.ptsg, 'PilotIndex')
+		pilot_xvec_list = current_dsl_struct.ptsg.PilotIndex;
+		plot([pilot_xvec_list(1), pilot_xvec_list(1)], [-70 70], 'Color', [1 0 0]);
+		plot([pilot_xvec_list(2), pilot_xvec_list(2)], [-70 70], 'Color', [1 0 0]);
+	end
+	
 	hold off
 	
 	max_y = max(max(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).Data(:)),max(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).(ARG2).Data(:)));
@@ -536,6 +539,16 @@ while (keep_parsing)
 		unprocessed_string(1) = [];
 	end
 	
+	%g997listrg results can contain spaces/char(10) inside the string values
+	% nReturn=0 nDirection=1 G994VendorID="..BDCM.." SystemVendorID="..BDCM.." 
+	% VersionNumber="v12.03.90      " SerialNumber="eq nr port:33  oemid softwarerev" SelfTestResult=0 XTSECapabilities=(00,00,00,00,00,00,00,02)
+	if ismember(cur_key, {'G994VendorID', 'SystemVendorID', 'VersionNumber', 'SerialNumber'}) && strcmp(unprocessed_string(1), '"')
+		quote_idx = strfind(unprocessed_string, '"');
+		return_struct.(cur_struct_key) = strtrim(unprocessed_string(quote_idx(1)+1:quote_idx(2)-1));
+		unprocessed_string = unprocessed_string(quote_idx(2)+1:end);
+		continue
+	end
+	
 	if ~strcmp(cur_key, 'nData')
 		[cur_value, unprocessed_string] = strtok(unprocessed_string, [' ', char(10)]);
 		%TODO special case and parse nFormat (and use to parse nData
@@ -657,14 +670,15 @@ parsed_dsl_output_struct.dsl_sub_cmd_string = dsl_sub_cmd_string;
 parsed_dsl_output_struct.dsl_sub_cmd_arg_string = dsl_sub_cmd_arg_string;
 
 % this currently is incompatible with the parser
-if strcmp(dsl_sub_cmd_string, 'g997listrg')
-	parsed_dsl_output_struct.input_string = dsl_cmd_output_string;
-	disp('g997listrg: parser incompatible, just returning the dsl_cmd_output_string as .input_string for now');
-	return
-end
+% if strcmp(dsl_sub_cmd_string, 'g997listrg')
+% 	parsed_dsl_output_struct.input_string = dsl_cmd_output_string;
+% 	disp('g997listrg: parser incompatible, just returning the dsl_cmd_output_string as .input_string for now');
+% 	return
+% end
 
 
 parsed_dsl_output_struct = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output_string);
+
 % check nReturn, if not 0 display error message
 if isfield(parsed_dsl_output_struct, 'Return')
 	ret_val = parsed_dsl_output_struct.Return;
@@ -692,7 +706,7 @@ if isfield(parsed_dsl_output_struct, 'Data')
 			% The reported gains of subcarriers out of the downstream MEDLEY set shall be set to 0.
 			% This parameter shall be reported with the most recent values when read over the Q-interface.
 			parsed_dsl_output_struct.Data = parsed_dsl_output_struct.Data / 512;
-			parsed_dsl_output_struct.Data_name = parsed_dsl_output_struct.Data_name(2:end);
+			parsed_dsl_output_struct.Data_name = parsed_dsl_output_struct.Data_name(1:end);
 			
 		case {'g997sansg', 'g997sang', 'g997dsnrg'}
 			% mask out the FF/255 bins, as FF is the "no measurement could be done" marker
@@ -708,7 +722,7 @@ if isfield(parsed_dsl_output_struct, 'Data')
 			% and ITU-T G.992.5 Annex C FEXT SNRpsds and NEXT SNRpsds.
 			parsed_dsl_output_struct.Data = (parsed_dsl_output_struct.Data * 0.5) - 32;
 			parsed_dsl_output_struct.Data(parsed_dsl_output_struct.ignore_bin_idx) = 0;
-			parsed_dsl_output_struct.Data_name = [parsed_dsl_output_struct.Data_name(2:end), ' [dB]'];
+			parsed_dsl_output_struct.Data_name = [parsed_dsl_output_struct.Data_name(1:end), ' [dB]'];
 			
 		case 'g997dhlogg'
 			parsed_dsl_output_struct.ignore_bin_marker = 1023;
@@ -722,7 +736,7 @@ if isfield(parsed_dsl_output_struct, 'Data')
 			% done for this subcarrier group because it is out of the passband or that the attenuation is out of range to be represented.
 			parsed_dsl_output_struct.Data = 6 - (parsed_dsl_output_struct.Data / 10);
 			parsed_dsl_output_struct.Data(parsed_dsl_output_struct.ignore_bin_idx) = NaN;
-			parsed_dsl_output_struct.Data_name = [parsed_dsl_output_struct.Data_name(2:end), ' [dB]'];
+			parsed_dsl_output_struct.Data_name = [parsed_dsl_output_struct.Data_name(1:end), ' [dB]'];
 			
 		case 'g997dqlng'
 			parsed_dsl_output_struct.ignore_bin_marker = 255;
@@ -737,11 +751,11 @@ if isfield(parsed_dsl_output_struct, 'Data')
 			% The same QLNpsds format shall be applied to ITU-T G.992.3 and ITU-T G.992.5 Annex C FEXT QLNpsds and NEXT QLNpsds.
 			parsed_dsl_output_struct.Data = -23 - (parsed_dsl_output_struct.Data / 2);
 			parsed_dsl_output_struct.Data(parsed_dsl_output_struct.ignore_bin_idx) = NaN;
-			parsed_dsl_output_struct.Data_name = [parsed_dsl_output_struct.Data_name(2:end), ' [dB, ref 1mW/Hz]'];
+			parsed_dsl_output_struct.Data_name = [parsed_dsl_output_struct.Data_name(1:end), ' [dB, ref 1mW/Hz]'];
 			
 			
 		case {'g997bang', 'g997bansg'}
-			parsed_dsl_output_struct.Data_name = parsed_dsl_output_struct.Data_name(2:end);
+			parsed_dsl_output_struct.Data_name = parsed_dsl_output_struct.Data_name(1:end);
 			
 		otherwise
 			% nothing to do
@@ -877,6 +891,18 @@ switch type
 		output_rect = [left_edge_cm bottom_edge_cm rect_w rect_h];	% left, bottom, width, height
 		%output_rect = [1.0 2.0 27.7 12.0];
 		set(gcf_h, 'PaperSize', [rect_w+2*left_edge_cm*fraction rect_h+2*bottom_edge_cm*fraction], 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters');
+
+	case 'A4_landscape'
+		left_edge_cm = 0.05;
+		bottom_edge_cm = 0.05;
+		A4_h_cm = 21.0;
+		A4_w_cm = 29.7;
+		rect_w = (A4_w_cm - 2*left_edge_cm) * fraction;
+		rect_h = ((A4_h_cm * 610/987) - 2*bottom_edge_cm) * fraction; % 610/987 approximates the golden ratio
+		output_rect = [left_edge_cm bottom_edge_cm rect_w rect_h];	% left, bottom, width, height
+		%output_rect = [1.0 2.0 27.7 12.0];
+		set(gcf_h, 'PaperSize', [rect_w+2*left_edge_cm*fraction rect_h+2*bottom_edge_cm*fraction], 'PaperOrientation', 'portrait', 'PaperUnits', 'centimeters');
+			
 		
 	case 'europe'
 		output_rect = [1.0 2.0 27.7 12.0];
