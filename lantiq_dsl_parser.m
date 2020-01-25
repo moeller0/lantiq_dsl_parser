@@ -20,7 +20,6 @@ function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
 % either collect, store and process data, or load and process data
 load_data = 0;
 
-
 process_bitallocation = 1;
 process_bitallocation2 = 1;
 process_gainallocation = 1;
@@ -60,7 +59,7 @@ HistoryInterval_list = [0, 1, 2];
 % COLORS
 bit_color_up = [0 1 0];
 bit_color_down = [0 0 1];
-snr_color_up = [0 0.66 0];
+snr_color_up = [0 0.8 0];
 snr_color_down = [254 233 23]/255;
 
 out_format = 'pdf';
@@ -447,7 +446,7 @@ end
 
 % construct summary figure
 
-if (plot_combined)
+if (plot_combined) && ~isoctave()
 	combined_SNR_BitAllocation_fh = figure('Name', ['SNR and Bit Allocation by sub-carrier: ', current_dsl_struct.current_datetime], 'visible', figure_visibility_string);
 	%fnFormatDefaultAxes(DefaultAxesType);
 	[output_rect] = fnFormatPaperSize(DefaultPaperSizeType, gcf, output_rect_fraction);
@@ -1030,4 +1029,15 @@ for i_val = 1: length(value_list)
 end
 
 return
+end
+
+function in = isoctave()
+persistent inout;
+
+if isempty(inout),
+	inout = exist('OCTAVE_VERSION','builtin') ~= 0;
+end;
+in = inout;
+
+return;
 end
