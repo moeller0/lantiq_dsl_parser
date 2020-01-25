@@ -87,7 +87,7 @@ dsl_sub_cmd_arg_string = [];
 if ~(load_data)
 	current_dsl_struct = struct();
 	
-	current_datetime = datestr(now, 'yyyyMMddTHHmmss');
+	current_datetime = datestr(now, 'yyyymmddTHHMMSS');
 	current_dsl_struct.current_datetime = current_datetime;
 	
 	
@@ -105,7 +105,8 @@ if ~(load_data)
 	
 	% DATA collection
 	% zero ARG commands: dsmstatg, bpsg cause issues
-	zero_arg_sub_cmd_string_list = {'vig', 'vpcg', 'ptsg', 'dsmsg', 'dsmcg', 'bpstg', 'pmcg', 'pmlictg'};
+	zero_arg_sub_cmd_string_list = {'bpsg', 'vig', 'vpcg', 'ptsg', 'dsmsg', 'dsmcg', 'bpstg', 'pmcg', 'pmlictg', 'llcg', 'lsg', ...
+		'g997xtusesg', 'g997xtusecg', 'g997upbosg'};
 	for i_zero_arg_sub_cmd_string = 1 : length(zero_arg_sub_cmd_string_list)
 		dsl_sub_cmd_string = zero_arg_sub_cmd_string_list{i_zero_arg_sub_cmd_string};
 		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string)] = ...
@@ -130,7 +131,7 @@ if ~(load_data)
 	% commands with one argument: Direction
 	% g997listrg cause issues
 	single_arg_sub_cmd_string_list = {'osg', 'g997bansg', 'g997bang', 'g997gansg', 'g997gang', 'g997sansg', 'g997sang', 'lfsg', 'g997lspbg', ...
-		'g997lig', 'g997ansg', 'g997listrg', 'pmlsctg', 'pmlesctg'};
+		'g997lig', 'g997ansg', 'g997listrg', 'g997rasg', 'pmlsctg', 'pmlesctg'};
 	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
 		dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
 		for i_dir = 1:length(direction_list)
@@ -569,67 +570,50 @@ return
 end
 
 function [ out_struct ] = fn_convert_and_add_nData_to_struct(in_struct, in_value, in_Format)
-% ideally this can be turned into evaluating in_format instead of hard
-% coding it, but for today...
-
-%TODO add the proper x_vec, deal with grouped/aggregate data
-
+% will evaluate the in_Format string to properly dissect the in_value data
+% for know in_Formats this will als copy X and Y data for per bin values
 
 out_struct = in_struct;
 cur_value = in_value;
+
+% implement generic parser that disects in_Format to create the correct
+% amount of fields with names taken directly from in_format as well as
+% using the correct format conversion
+out_struct = fn_parse_value_string_by_in_Format(out_struct, cur_value, in_Format);
+
+% change this to just create the canonical data copies so that a generic
+% prinnting function can just plot Data over Data_xvec
 switch in_Format
 	case {'nBit(hex)', 'nGain(hex)', 'nSnr(hex)'}
-		% convert into cell array anf then convert each cell from hex to decimal
-		[out_struct.Data_name, rem] = strtok(in_Format, '(');
-		out_struct.Data_type = rem(2:end-1);
-		
-		value_list = strsplit(strtrim(cur_value));
-		switch out_struct.Data_type
-			case 'hex'
-				out_struct.Data = hex2dec(value_list)';
-			otherwise
-				error(['Encountered unknown Data_type: ', out_struct.Data_type]);
-		end
+		% copy the field containing the to-be-plotted data to .Data
+		cur_name = strtok(in_Format, '(');
+		out_struct.Data = out_struct.(sanitize_name_for_matlab(cur_name(2:end)));
+		% synthesize a vector of x values to plot the data over
 		out_struct.Data_xvec = (1:1:length(out_struct.Data)) - 1;
+		
+		out_struct.Data_name = sanitize_name_for_matlab(cur_name(2:end));
+		out_struct.Data_xvec_name = sanitize_name_for_matlab('Bin');
+		
 		
 	case {'(nGroupIndex(dec),nSnr(dec))', '(nToneIndex(dec),nSnr(hex))', ...
 			'(nToneIndex(dec),nBit(hex))', '(nToneIndex(dec),nGain(hex))', ...
 			'(nToneIndex(dec),nQln(dec))', '(nToneIndex(dec),nHlog(dec))', ...
 			'(nPilotNum(dec),nPilotIndex(dec))'}
 		% extract the Format information
-		[first, second] = strtok(in_Format, ',');
-		[out_struct.Data_xvec_name, proto_type] = strtok(first(2:end), '(');
-		out_struct.Data_xvec_type = proto_type(2:end-1);
-		[out_struct.Data_name, proto_type] = strtok(second(2:end), '(');
-		out_struct.Data_type = proto_type(2:end-2);
+		[proto_xvev_name, proto_data_name] = strtok(in_Format(2:end-1), ',');
+		% get the xvecs
+		proto_data_xvec = strtok(proto_xvev_name, '(');
+		cur_xvec_name = sanitize_name_for_matlab(proto_data_xvec(2:end));
+		out_struct.Data_xvec = out_struct.(cur_xvec_name);
+		out_struct.Data_xvec_name = cur_xvec_name;
 		
-		value_list = strsplit(strtrim(cur_value));
-		out_struct.Data = zeros(size(value_list));
-		out_struct.Data_xvec = zeros(size(value_list));
-		for i_val = 1: length(value_list)
-			cur_val = value_list{i_val}(2:end-1);
-			[tmp_xvec, tmp_data] = strtok(cur_val, ',');
-			switch out_struct.Data_xvec_type
-				case 'dec'
-					out_struct.Data_xvec(i_val) = str2num(tmp_xvec);
-				otherwise
-					error(['Encountered unknown Data_xvex_type: ', out_struct.Data_xvec_type]);
-			end
-			switch out_struct.Data_type
-				case 'dec'
-					out_struct.Data(i_val) = str2num(tmp_data(2:end));
-				case 'hex'
-					out_struct.Data(i_val) = hex2dec(tmp_data(2:end));
-				otherwise
-					error(['Encountered unknown Data_type: ', out_struct.Data_type]);
-			end
-		end
-	case {'(nBandPlan(dec),nProfile(dec),bSupported(dec))'}
-		% required for bpsg
-		error('Not supported yet');
+		% get the data
+		cur_name = sanitize_name_for_matlab(strtok(proto_data_name(3:end), '('));
+		out_struct.Data = out_struct.(cur_name);
+		out_struct.Data_name = cur_name;
 		
 	otherwise
-		error(['Encountered unhandled format string: ', in_Format]);
+		disp(['fn_convert_and_add_nData_to_struct: Encountered unhandled format string: ', in_Format, ' no auto generation of .Data and .Data_xvec.']);
 end
 
 return
@@ -954,6 +938,69 @@ for i_taboo_char = 1: length(taboo_char_list)
 		end
 	end
 	sanitized_name = tmp_string;
+end
+
+return
+end
+
+
+function [ out_struct ] = fn_parse_value_string_by_in_Format(in_struct, cur_value, in_Format)
+% parse the dsl_pipe nData fields based on the nFormat string's components
+
+
+out_struct = in_struct;
+value_list = strsplit(strtrim(cur_value));
+field_separator = ',';
+
+processed_in_Format = in_Format;
+
+% get the number of fields
+n_values_per_cell = length(strfind(in_Format, ',')) + 1;
+if n_values_per_cell > 1
+	grouping_chars_expression = ['(^\', in_Format(1), '|\', in_Format(end), '$)'];
+	% remove the enclosing parantheses
+	processed_in_Format = regexprep(in_Format, grouping_chars_expression, '');
+end
+
+% split the inFormat into name and types
+type_list = cell([1 n_values_per_cell]);
+name_list = cell([1 n_values_per_cell]);
+for i_values = 1 : n_values_per_cell
+	[cur_format, processed_in_Format] = strtok(processed_in_Format, field_separator);	
+	processed_in_Format = processed_in_Format(2:end); % get rid of the delimiter
+	[proto_name, proto_type] = strtok(cur_format, '(');
+	name_list{i_values} = sanitize_name_for_matlab(proto_name(2:end));
+	type_list{i_values} = sanitize_name_for_matlab(proto_type(2:end-1));
+	
+	% pre allocate the actual data fields
+	out_struct.(name_list{i_values}) = zeros(size(value_list));
+	out_struct.([name_list{i_values}, '_type']) = type_list{i_values};
+end
+
+% now process the data
+for i_val = 1: length(value_list)
+	cur_values = value_list{i_val};
+	if n_values_per_cell > 1
+		cur_values = regexprep(value_list{i_val}, grouping_chars_expression, '');
+	end
+	
+	processed_cur_val = cur_values;
+	for i_values = 1 : n_values_per_cell
+		cur_type = type_list{i_values};
+		cur_name = name_list{i_values};
+		% split, split, split
+		[cur_value, processed_cur_val] = strtok(processed_cur_val, field_separator);
+		processed_cur_val = processed_cur_val(2:end); % get rid of the delimiter
+			
+		switch cur_type
+			case 'hex'
+				out_struct.(cur_name)(i_val) = hex2dec(cur_value);
+			case 'dec'
+				out_struct.(cur_name)(i_val) = str2num(cur_value);
+			otherwise
+				error(['Encountered unknown Data_type: ', cur_type]);
+		end	
+	end
 end
 
 return
