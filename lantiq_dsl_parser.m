@@ -77,6 +77,10 @@ ssh_dsl_cfg.lantig_dsl_cmd_prefix = '. /lib/functions/lantiq_dsl.sh ; dsl_cmd';
 ssh_dsl_cfg.ssh_command_stem = ['ssh ', ssh_dsl_cfg.lantig_user, '@', ssh_dsl_cfg.lantiq_IP];
 dsl_sub_cmd_arg_string = [];
 
+% make octave write disp/error output to screen immediately
+if isoctave()
+	page_screen_output = 0;
+end
 
 if ~(load_data)
 	current_dsl_struct = struct();
