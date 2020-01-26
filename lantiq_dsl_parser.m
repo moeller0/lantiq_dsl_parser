@@ -3,6 +3,10 @@ function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
 %   Detailed explanation goes here
 % This works with matlab and octave (modulo the combining of existing
 % plots)
+% see LICENSE_lantiq in the root folder for licensing information
+% Summary:
+% This source code is distributed under a dual license of GPL and BSD (2-clause).
+% Please choose the appropriate license for your intended usage.
 
 % TODO:
 %	scale the x_vecs correctly, by evaluating nGroupSize (WIP)
@@ -708,8 +712,11 @@ parsed_dsl_output_struct = fn_parse_lantiqdsl_cmd_output(dsl_cmd_output_string);
 % check nReturn, if not 0 display error message
 if isfield(parsed_dsl_output_struct, 'Return')
 	ret_val = parsed_dsl_output_struct.Return;
+	return_code = fn_find_error_name_by_value(ret_val);
+	parsed_dsl_output_struct.return_code = return_code;
+	
 	if (ret_val ~= 0)
-		disp(['Calling ', lantig_dsl_cmd_string, ' resulted in non-zero return value']);
+		disp(['Calling ', lantig_dsl_cmd_string, ' resulted in return code: ', num2str(ret_val), ': ', return_code]);	
 		if ~isempty(regexp(dsl_cmd_output_string, 'wrong number of parameters'))
 			disp(dsl_cmd_output_string);
 		end
@@ -1094,7 +1101,16 @@ end
 
 line_state_struct = [];
 
-
+% /******************************************************************************
+% 
+%                               Copyright (c) 2014
+%                             Lantiq Deutschland GmbH
+% 
+%   For licensing information, see the file 'LICENSE_lantiq' in the root folder of
+%   this software module.
+% 
+% ******************************************************************************/
+%
 %    /** Line State is not initialized!
 %        This state only exists within software. During link activation procedure
 %        it will be set initially before any DSL firmware response was received
@@ -1277,3 +1293,482 @@ return
 end
 
 
+function [ error_name ] = fn_find_error_name_by_value( error_value )
+persistent error_code_struct
+
+% default to the hopefully common case
+error_name = 'DSL_SUCCESS';
+if (error_value == 0)
+	return
+end
+
+if isempty(error_code_struct)
+	error_code_struct = fn_get_dsl_error_code_struct();
+end
+
+% now find error_name and error_desription
+error_idx = find(error_code_struct.error_value_list == error_value);
+
+if isempty(error_idx)
+	error(['Unknown error value (', num2str(error_value),') encountered.']);
+end	
+
+if (length(error_idx) > 1)
+	error(['Error value (', num2str(error_value),') not unique.']);
+end	
+error_name = error_code_struct.error_name_list{error_idx};
+
+return
+end
+
+
+function [ error_code_struct ] = fn_get_dsl_error_code_struct()
+
+error_code_struct = [];
+
+error_name_list = [];
+error_value_list = [];
+
+
+% /******************************************************************************
+% 
+%                               Copyright (c) 2014
+%                             Lantiq Deutschland GmbH
+% 
+%   For licensing information, see the file 'LICENSE_lantiq' in the root folder of
+%   this software module.
+% 
+% ******************************************************************************/
+% 
+% /**
+%    Defines all possible error codes.
+%    Error codes are negative, warning codes are positive and success has the
+%    value 0.
+%    \note If there are more than one warnings during processing of one DSL CPE API
+%          call the warning with the lowest value will be returned
+% */
+%    /* *********************************************************************** */
+%    /* *** Error Codes Start here !                                        *** */
+%    /* *********************************************************************** */
+% 
+%    /* *********************************************************************** */
+%    /* *** Error Codes for bonding functionality                           *** */
+%    /* *********************************************************************** */
+%    /** Command/feature can not be performed because only one line can be in
+%        showtime in case of disabled bonding on the CO side. This line has been
+%        disabled because the other line has reached a line state that is equal
+%        or bigger than \ref DSL_LINESTATE_FULL_INIT.
+%        To activate this line again please do one of the following actions
+%        - in case of *on-chip* bonding scenario, use command
+%          \ref DSL_FIO_AUTOBOOT_CONTROL_SET with nCommand equals
+%          \ref DSL_AUTOBOOT_CTRL_RESTART_FULL on any line (CLI: "acs [x] 6").
+%          This will start both lines.
+%        - use command \ref DSL_FIO_AUTOBOOT_CONTROL_SET with nCommand equals
+%          \ref DSL_AUTOBOOT_CTRL_DISABLE on the other line (that is not
+%          disabled, CLI: "acs [x] 4").
+%          Afterwards both lines are disabled and can be enabled again
+%          1) individually by using command \ref DSL_FIO_AUTOBOOT_CONTROL_SET with
+%          nCommand equals \ref DSL_AUTOBOOT_CTRL_ENABLE or
+%          \ref DSL_AUTOBOOT_CTRL_RESTART (CLI: "acs [x] 5" or "acs [x] 2")
+%          2) all togther by using command \ref DSL_FIO_AUTOBOOT_CONTROL_SET with
+%          nCommand equals \ref DSL_AUTOBOOT_CTRL_RESTART_FULL on any line
+%          (CLI: "acs [x] 6"), only in case of *on-chip* bonding.
+%        \note The value [x] includes the optional line/device parameter that is
+%              used only in case of bonding. */
+error_name_list{end+1} = 'DSL_ERR_BND_REMOTE_PAF_DISABLED';
+error_value_list(end+1) = -502;
+%    /** Command/feature is only supported if bonding functionality is enabled.
+%        Please use the command \ref DSL_FIO_BND_CONFIG_SET with bPafEnable
+%        equals DSL_TRUE to enable bonding functionality. */
+error_name_list{end+1} = 'DSL_ERR_BND_ONLY_SUPPORTED_WITH_BONDING_ENABLED';
+error_value_list(end+1) = -501;
+%    /** Command/feature can not be performed because the firmware does not
+%        support bonding functionality. */
+error_name_list{end+1} = 'DSL_ERR_BND_NOT_SUPPORTED_BY_FIRMWARE';
+error_value_list(end+1) = -500;
+
+%    /* *********************************************************************** */
+%    /* *** Error Codes for configuration parameter consistency check       *** */
+%    /* *********************************************************************** */
+%    /** The configuration of the TC-Layer does not fit to the bonding
+%        configuration. Due to the fact that PAF bonding is only supported within
+%        PTM/EFM TC-Layer please note that it is not allowed to select only the
+%        \ref DSL_TC_ATM TC-Layer in case of bonding is enabled
+%        (CLI: "BND_ConfigSet"/"bndcs").
+%        This error will occur in case of bonding is enabled and user
+%        configuration of \ref DSL_TC_ATM is applied or vice versa. The
+%        configuration is rejected, means that the original configuration will
+%        be kept. */
+error_name_list{end+1} = 'DSL_ERR_CONFIG_BND_VS_TCLAYER';
+error_value_list(end+1) = -401;
+%    /** parameter out of range */
+error_name_list{end+1} = 'DSL_ERR_PARAM_RANGE';
+error_value_list(end+1) = -400;
+% 
+%    /* *********************************************************************** */
+%    /* *** Error Codes for EOC handler                                     *** */
+%    /* *********************************************************************** */
+%    /** transmission error */
+error_name_list{end+1} = 'DSL_ERR_CEOC_TX_ERR';
+error_value_list(end+1) = -300;
+% 
+%    /* *********************************************************************** */
+%    /* *** Error Codes for modem handling                                  *** */
+%    /* *********************************************************************** */
+%    /** Modem is not ready */
+error_name_list{end+1} = 'DSL_ERR_MODEM_NOT_READY';
+error_value_list(end+1) = -201;
+% 
+%    /* *********************************************************************** */
+%    /* *** Error Codes for Autoboot handler                                *** */
+%    /* *********************************************************************** */
+%    /** Autoboot handling has been disabled.
+%        \note Also refer to description of \ref DSL_LINESTATE_DISABLED */
+error_name_list{end+1} = 'DSL_ERR_AUTOBOOT_DISABLED';
+error_value_list(end+1) = -103;
+%    /** Autoboot thread is not started yet */
+error_name_list{end+1} = 'DSL_ERR_AUTOBOOT_NOT_STARTED';
+error_value_list(end+1) = -102;
+%    /** Autoboot thread is busy */
+error_name_list{end+1} = 'DSL_ERR_AUTOBOOT_BUSY';
+error_value_list(end+1) = -101;
+% 
+%    /* *********************************************************************** */
+%    /* *** Error Codes for IOCTL handler                                   *** */
+%    /* *********************************************************************** */
+%    /** An error occurred during execution of a low level (MEI BSP) driver
+%        function */
+error_name_list{end+1} = 'DSL_ERR_LOW_LEVEL_DRIVER_ACCESS';
+error_value_list(end+1) = -32;
+%    /** Invalid parameter is passed */
+error_name_list{end+1} = 'DSL_ERR_INVALID_PARAMETER';
+error_value_list(end+1) = -31;
+% 
+%    /* *********************************************************************** */
+%    /* *** Common Error Codes                                              *** */
+%    /* *********************************************************************** */
+%    /** invalid DSL mode */
+error_name_list{end+1} = 'DSL_ERR_NO_FIRMWARE_LOADED';
+error_value_list(end+1) = -43;
+%    /** Data is currently not available.
+%        Update handling for the relevant interval was not completed before and
+%        is just in progress. Please request the data at a later point in time
+%        again and/or wait for the according "data available" event, for
+%        example \ref DSL_EVENT_S_FE_TESTPARAMS_AVAILABLE */
+error_name_list{end+1} = 'DSL_ERR_DATA_UPDATE_IN_PROGRESS';
+error_value_list(end+1) = -42;
+%    /** invalid DSL mode */
+error_name_list{end+1} = 'DSL_ERR_DSLMODE';
+error_value_list(end+1) = -41;
+%    /** The requested values are not supported in the current VDSL mode */
+error_name_list{end+1} = 'DSL_ERR_NOT_SUPPORTED_IN_CURRENT_VDSL_MODE';
+error_value_list(end+1) = -40;
+%    /** Real time trace unavailable */
+error_name_list{end+1} = 'DSL_ERR_RTT_NOT_AVAILABLE';
+error_value_list(end+1) = -39;
+%    /** Feature unavailable in case of disabled retransmission.
+%        This error can happen in the following cases
+%        - The retransmission feature is not enabled on CPE side.
+%          The feature can be enabled by using configuration parameter
+%          'bReTxEnable' within context of ioctl
+%          \ref DSL_FIO_LINE_FEATURE_CONFIG_SET
+%        - The feature is enabled on CPE side but the CO side does not support it
+%          or has not enabled it.
+%          This state can be checked by getting retransmission status value
+%          'bReTxEnable' within context of ioctl
+%          \ref DSL_FIO_LINE_FEATURE_STATUS_GET that needs to be called in
+%          showtime. */
+error_name_list{end+1} = 'DSL_ERR_RETRANSMISSION_DISABLED';
+error_value_list(end+1) = -38;
+%    /** CPE triggered L3 request has been rejected by the CO side,
+%        reason - not desired*/
+error_name_list{end+1} = 'DSL_ERR_L3_REJECTED_NOT_DESIRED';
+error_value_list(end+1) = -37;
+%    /** ioctl not supported by DSL CPE API.
+%        The reason might be because of current configure options. */
+error_name_list{end+1} = 'DSL_ERR_IOCTL_NOT_SUPPORTED';
+error_value_list(end+1) = -36;
+%    /** Feature or functionality is not defined by standards. */
+error_name_list{end+1} = 'DSL_ERR_NOT_SUPPORTED_BY_DEFINITION';
+error_value_list(end+1) = -35;
+%    /** DSL CPE API not initialized yet*/
+error_name_list{end+1} = 'DSL_ERR_NOT_INITIALIZED';
+error_value_list(end+1) = -34;
+%    /** The requested values are not supported in the current
+%        ADSL mode or Annex*/
+error_name_list{end+1} = 'DSL_ERR_NOT_SUPPORTED_IN_CURRENT_ADSL_MODE_OR_ANNEX';
+error_value_list(end+1) = -33;
+%    /** The DELT data is not available within DSL CPE API.
+%        Whether the diagnostic complete state was never reached (no successful
+%        completion of DELT measurement) or the DELT data was already deleted
+%        by using ioctl \ref DSL_FIO_G997_DELT_FREE_RESOURCES */
+error_name_list{end+1} = 'DSL_ERR_DELT_DATA_NOT_AVAILABLE';
+error_value_list(end+1) = -30;
+%    /** The event that should be processed are not active for the current
+%        instance */
+error_name_list{end+1} = 'DSL_ERR_EVENTS_NOT_ACTIVE';
+error_value_list(end+1) = -29;
+%    /** During CPE triggered L3 request an error occurred that could not be
+%        classified more in detail. Please check if the L3 entry is allowed on
+%        the CO side.*/
+error_name_list{end+1} = 'DSL_ERR_L3_UNKNOWN_FAILURE';
+error_value_list(end+1) = -28;
+%    /** CPE triggered L3 request timed out */
+error_name_list{end+1} = 'DSL_ERR_L3_NOT_IN_L0';
+error_value_list(end+1) = -27;
+%    /** During CPE triggered L3 request the CO side has returned the error
+%        that the line is not in L0 state. */
+error_name_list{end+1} = 'DSL_ERR_L3_TIMED_OUT';
+error_value_list(end+1) = -26;
+%    /** CPE triggered L3 request has been rejected by the CO side. */
+error_name_list{end+1} = 'DSL_ERR_L3_REJECTED';
+error_value_list(end+1) = -25;
+%    /** failed to get low level driver handle */
+error_name_list{end+1} = 'DSL_ERR_LOWLEVEL_DRIVER_HANDLE';
+error_value_list(end+1) = -24;
+%    /** invalid direction */
+error_name_list{end+1} = 'DSL_ERR_DIRECTION';
+error_value_list(end+1) = -23;
+%    /** invalid channel number is passed */
+error_name_list{end+1} = 'DSL_ERR_CHANNEL_RANGE';
+error_value_list(end+1) = -22;
+%    /** function available only in the Showtime state */
+error_name_list{end+1} = 'DSL_ERR_ONLY_AVAILABLE_IN_SHOWTIME';
+error_value_list(end+1) = -21;
+%    /** Device has no data for application */
+error_name_list{end+1} = 'DSL_ERR_DEVICE_NO_DATA';
+error_value_list(end+1) = -20;
+%    /** Device is busy */
+error_name_list{end+1} = 'DSL_ERR_DEVICE_BUSY';
+error_value_list(end+1) = -19;
+%    /** The answer from the device does not return within the specifies timeout */
+error_name_list{end+1} = 'DSL_ERR_FUNCTION_WAITING_TIMEOUT';
+error_value_list(end+1) = -18;
+%    /** Last operation is supported if debug is enabled only error */
+error_name_list{end+1} = 'DSL_ERR_ONLY_SUPPORTED_WITH_DEBUG_ENABLED';
+error_value_list(end+1) = -17;
+%    /** Semaphore lock error */
+error_name_list{end+1} = 'DSL_ERR_SEMAPHORE_GET';
+error_value_list(end+1) = -16;
+%    /** Common error on send message and wait for answer handling */
+error_name_list{end+1} = 'DSL_ERR_FUNCTION_WAITING';
+error_value_list(end+1) = -15;
+%    /** Message exchange error */
+error_name_list{end+1} = 'DSL_ERR_MSG_EXCHANGE';
+error_value_list(end+1) = -14;
+%    /** Not implemented error */
+error_name_list{end+1} = 'DSL_ERR_NOT_IMPLEMENTED';
+error_value_list(end+1) = -13;
+%    /** Internal error */
+error_name_list{end+1} = 'DSL_ERR_INTERNAL';
+error_value_list(end+1) = -12;
+%    /** Feature or functionality not supported by device */
+error_name_list{end+1} = 'DSL_ERR_NOT_SUPPORTED_BY_DEVICE';
+error_value_list(end+1) = -11;
+%    /** Feature or functionality not supported by firmware */
+error_name_list{end+1} = 'DSL_ERR_NOT_SUPPORTED_BY_FIRMWARE';
+error_value_list(end+1) = -10;
+%    /** Feature or functionality not supported by DSL CPE API */
+error_name_list{end+1} = 'DSL_ERR_NOT_SUPPORTED';
+error_value_list(end+1) = -9;
+%    /** function returned with timeout */
+error_name_list{end+1} = 'DSL_ERR_TIMEOUT';
+error_value_list(end+1) = -8;
+%    /** invalid pointer */
+error_name_list{end+1} = 'DSL_ERR_POINTER';
+error_value_list(end+1) = -7;
+%    /** invalid memory */
+error_name_list{end+1} = 'DSL_ERR_MEMORY';
+error_value_list(end+1) = -6;
+%    /** file open failed */
+error_name_list{end+1} = 'DSL_ERR_FILE_OPEN';
+error_value_list(end+1) = -5;
+%    /** file write failed */
+error_name_list{end+1} = 'DSL_ERR_FILE_WRITE';
+error_value_list(end+1) = -4;
+%    /** file reading failed */
+error_name_list{end+1} = 'DSL_ERR_FILE_READ';
+error_value_list(end+1) = -3;
+%    /** file close failed */
+error_name_list{end+1} = 'DSL_ERR_FILE_CLOSE';
+error_value_list(end+1) = -2;
+%    /** Common error */
+error_name_list{end+1} = 'DSL_ERROR';
+error_value_list(end+1) = -1;
+%    /** Success */
+error_name_list{end+1} = 'DSL_SUCCESS';
+error_value_list(end+1) = 0;
+%    /* *********************************************************************** */
+%    /* *** Warning Codes Start here !                                      *** */
+%    /* *********************************************************************** */
+% 
+%    /* *********************************************************************** */
+%    /* *** Common Warning Codes                                            *** */
+%    /* *********************************************************************** */
+%    /** One or more parameters are truncated to min./max or next possible value */
+error_name_list{end+1} = 'DSL_WRN_CONFIG_PARAM_TRUNCATED';
+error_value_list(end+1) = 1;
+%    /** DSL CPE API already initialized*/
+error_name_list{end+1} = 'DSL_WRN_ALREADY_INITIALIZED';
+error_value_list(end+1) = 2;
+%    /** XTSE settings consist of unsupported bits. All unsupported bits removed,
+%       configuration applied*/
+error_name_list{end+1} = 'DSL_WRN_INCONSISTENT_XTSE_CONFIGURATION';
+error_value_list(end+1) = 3;
+%    /** One or more parameters are ignored */
+error_name_list{end+1} = 'DSL_WRN_CONFIG_PARAM_IGNORED';
+error_value_list(end+1) = 4;
+%    /** This warning is used in case of an event was lost.
+%    This could happen due to the following reasons
+%    - polling cycle within polling based event handling is to slow
+%    - system overload respective improper priorities within interrupt based
+%      event handling
+%    Also refer to "Event Handling" chapter within UMPR to get all the details. */
+error_name_list{end+1} = 'DSL_WRN_EVENT_FIFO_OVERFLOW';
+error_value_list(end+1)  = 5;
+%    /** The ioctl function that has been used is deprecated.
+%    Please do not use this function anymore. Refer to the according documentation
+%    (release notes and/or User's Manual Programmer's Reference [UMPR]) of
+%    the DSL CPE API to find the new function that has to be used. */
+error_name_list{end+1} = 'DSL_WRN_DEPRECATED';
+error_value_list(end+1)  = 6;
+%    /** This warning occurs if the firmware did not accept the last message.
+%       This may occur if the message is unknown or not allowed in the current
+%       state. */
+error_name_list{end+1} = 'DSL_WRN_FIRMWARE_MSG_DENIED';
+error_value_list(end+1) = 9;
+%    /** This warning occurs if no data available from the device. */
+error_name_list{end+1} = 'DSL_WRN_DEVICE_NO_DATA';
+error_value_list(end+1) = 10;
+%    /** The requested functionality is not supported due to build configuration.
+%        Please refer to the documentation for "Configure options for the DSL CPE
+%        API Driver" */
+error_name_list{end+1} = 'DSL_WRN_NOT_SUPPORTED_DUE_TO_BUILD_CONFIG';
+error_value_list(end+1) = 13;
+%    /** The performed API interface access is not allowed within current autoboot
+%        state. */
+error_name_list{end+1} = 'DSL_WRN_NOT_ALLOWED_IN_CURRENT_STATE';
+error_value_list(end+1) = 14;
+%    /** This warning occurs if there was a request of status information but not
+%        all returned values includes updated data.
+%        For example the ioctl \ref DSL_FIO_G997_LINE_STATUS_GET includes six
+%        parameters that are returned and three of them are requested from far end
+%        side via overhead channel. If this is not possible because of a not
+%        responding CO this warning is returned and the according value will have
+%        its special value.
+%        The higher layer application shall check all returned values according
+%        to its special value if this warning is returned. */
+error_name_list{end+1} = 'DSL_WRN_INCOMPLETE_RETURN_VALUES';
+error_value_list(end+1) = 15;
+%    /** Some (or all) of the requested values are not supported in the current
+%        ADSL mode or Annex*/
+error_name_list{end+1} = 'DSL_WRN_NOT_SUPPORTED_IN_CURRENT_ADSL_MODE_OR_ANNEX';
+error_value_list(end+1) = 16;
+%    /** Not defined ADSL MIB flags detected*/
+error_name_list{end+1} = 'DSL_WRN_INCONSISTENT_ADSL_MIB_FLAGS';
+error_value_list(end+1) = 17;
+%    /** Common warning to indicate some incompatibility in the used SW, FW or HW
+%        versions*/
+error_name_list{end+1} = 'DSL_WRN_VERSION_INCOMPATIBLE';
+error_value_list(end+1) = 18;
+%    /** Warning to indicate violation between Band Limits and actual borders*/
+error_name_list{end+1} = 'DSL_WRN_FW_BB_STANDARD_VIOLATION';
+error_value_list(end+1) = 19;
+%    /** Warning to indicate not recommended configuration*/
+error_name_list{end+1} = 'DSL_WRN_NOT_RECOMMENDED_CONFIG';
+error_value_list(end+1) = 20;
+
+%    /* *********************************************************************** */
+%    /* *** PM related warning Codes                                        *** */
+%    /* *********************************************************************** */
+%    /** Performance Monitor thread was not able to receive showtime related
+%        counter (TR-98) */
+error_name_list{end+1} = 'DSL_WRN_PM_NO_SHOWTIME_DATA';
+error_value_list(end+1) = 100;
+%    /** Requested functionality not supported in the current PM Sync mode*/
+error_name_list{end+1} = 'DSL_WRN_PM_NOT_ALLOWED_IN_CURRENT_SYNC_MODE';
+error_value_list(end+1) = 101;
+%    /** Previous External Trigger is not handled*/
+error_name_list{end+1} = 'DSL_WRN_PM_PREVIOUS_EXTERNAL_TRIGGER_NOT_HANDLED';
+error_value_list(end+1) = 102;
+% 
+%    /** PM poll cycle not updated due to the active Burnin Mode. Poll cycle
+%        configuration changes will be loaded automatically after disabling
+%        Burnin Mode*/
+error_name_list{end+1} = 'DSL_WRN_PM_POLL_CYCLE_NOT_UPDATED_IN_BURNIN_MODE';
+error_value_list(end+1) = 103;
+
+%    /* *********************************************************************** */
+%    /* *** SNMP/EOC related warning Codes                                 *** */
+%    /* *********************************************************************** */
+%    /** CEOC Rx SNMP fifo of DSL CPE API is empty or firmware does not provide
+%        any data with interrupt. */
+error_name_list{end+1} = 'DSL_WRN_SNMP_NO_DATA';
+error_value_list(end+1) = 200;
+%    /** Currently the only protocol that is handled by the DSL CPE API is
+%        SNMP (0x814C) */
+error_name_list{end+1} = 'DSL_WRN_EOC_UNSUPPORTED_PROTOCOLL_ID';
+error_value_list(end+1) = 201;
+
+%    /* *********************************************************************** */
+%    /* *** Warning Codes for configuration parameter consistency check     *** */
+%    /* *********************************************************************** */
+%    /** This warning code is not used anymore. */
+error_name_list{end+1} = 'DSL_WRN_CONFIG_BND_VS_RETX';
+error_value_list(end+1) = 400;
+%    /** The configuration of the TC-Layer does not fit to the bonding
+%        configuration. Due to the fact that PAF bonding is only supported
+%        within PTM/EFM TC-Layer please note that in case of enabled bonding
+%        support (CLI: "BND_ConfigSet"/"bndcs") the TC-Layer configuration (of the
+%        DSL Firmware) will be set to fixed PTM/EFM operation.
+%        This warning will occur in case of bonding is enabled and user
+%        configuration of \ref DSL_TC_AUTO is applied or vice versa. The
+%        configuration is accepted but during link configuration only PTM/EFM
+%        is enabled. */
+error_name_list{end+1} = 'DSL_WRN_CONFIG_BND_VS_TCLAYER';
+error_value_list(end+1) = 401;
+%    /** The configuration parameter for upstream (US) direction can be only
+%        enabled if according downstream (DS) value is enabled. In this case
+%        the configuration to enable upstream RTX was discared. Please enable
+%        RTX for downstream first! */
+error_name_list{end+1} = 'DSL_WRN_CONFIG_RTX_US_ONLY_SUPPORTED_WITH_DS_ENABLED';
+error_value_list(end+1) = 402;
+%    /* *********************************************************************** */
+%    /* *** Bonding functionality related warning codes                     *** */
+%    /* *********************************************************************** */
+%    /** The DSL PHY Firmware does not support bonding but bonding is required
+%        from DSL CPE API compilation and configuration point of view.
+%        In this case the DSL CPE API is compiled for bonding and one of the
+%        following cases apply
+%        - bonding is enabled while changing the firmware binary which does not
+%          support bonding (related CLI command: "alf")
+%        - a firmware is running that does not support bonding and a
+%          configuration change to enable bonding will be done (related CLI
+%          command: "bndcs")
+%        In both above cases bonding is *not* activated within firmware
+%        configuration handling. This means that the bonding enable configuration
+%        is ignored.
+%        In case of on-chip bonding the firmware is started in single port mode
+%        and only line 0 is accessible. */
+error_name_list{end+1} = 'DSL_WRN_BND_NOT_SUPPORTED_BY_FIRMWARE';
+error_value_list(end+1) = 500;
+
+% %    /* Last warning code marker */
+% error_name_list{end+1} = 'DSL_WRN_LAST';
+% error_value_list(end+1) = 10000;
+
+% FIXME these are error codes not described in the lantiq
+% drv_dsl_cpe_api_error.h file but encountered from the driver
+% to make this still run, manually add the respective error/warning codes
+% with the appropriate DSL_ERR/DSL_WRN prefixes
+error_name_list{end+1} = 'DSL_ERR_ERRORCODE_UNKNOWN_IN_OLD_API_DOCUMENTATION';
+error_value_list(end+1) = -45;
+
+
+
+error_code_struct.error_name_list = error_name_list;
+error_code_struct.error_value_list = error_value_list;
+
+
+return
+end
