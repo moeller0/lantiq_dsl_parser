@@ -52,6 +52,7 @@ deltdatatype_string = num2str(deltdatatype_list(1));
 channel_list = [0];
 %channel_string = num2str(channel_list(1));
 HistoryInterval_list = [0, 1, 2];
+DslMode_list = [0];
 
 % COLORS
 bit_color_up = [0 1 0];
@@ -82,6 +83,10 @@ if isoctave()
 	more off
 end
 
+[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, 'lsg', dsl_sub_cmd_arg_string );
+
+
+
 if ~(load_data)
 	current_dsl_struct = struct();
 	
@@ -104,13 +109,30 @@ if ~(load_data)
 	% DATA collection
 	% zero ARG commands: dsmstatg, bpsg cause issues
 	zero_arg_sub_cmd_string_list = {'bpsg', 'vig', 'vpcg', 'ptsg', 'dsmsg', 'dsmcg', 'bpstg', 'pmcg', 'pmlictg', 'llcg', 'lsg', ...
-		'g997xtusesg', 'g997xtusecg', 'g997upbosg'};
+		'meipocg', 'nsecg', 'g997xtusesg', 'g997xtusecg', 'g997upbosg', ...
+		'rusg', 'sisg', 'tmsg'};
+		%'t1413xtuorg', 't1413xtuovrg', 't1413xturrg', 't1413xturvrg' ???
 	for i_zero_arg_sub_cmd_string = 1 : length(zero_arg_sub_cmd_string_list)
 		dsl_sub_cmd_string = zero_arg_sub_cmd_string_list{i_zero_arg_sub_cmd_string};
 		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string)] = ...
 			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, []);
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
+
+	% commands with one argument: DslMode
+	single_arg_sub_cmd_string_list = {'rccg', 'sicg'};
+	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
+		dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
+		for i_DslMode = 1:length(DslMode_list)
+			cur_DslMode = DslMode_list(i_DslMode);
+			cur_DslMode_string = [num2str(cur_DslMode)];
+			[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['DslMode_', cur_DslMode_string])] = ...
+				fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_DslMode_string);
+		end
+		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+	end
+	
+	
 	
 	% commands with one argument: HistoryInterval
 	single_arg_sub_cmd_string_list = {'pmlicsg', 'pmlic1dg', 'pmlic15mg'};
@@ -696,6 +718,14 @@ else
 	% the help command does not return nReturn
 end
 
+% dsl_sub_cmd_string specific processing
+switch dsl_sub_cmd_string
+	case 'lsg'
+		% get a human readable name for the LineState
+		parsed_dsl_output_struct.LineState_name = fn_find_dsl_state_name_by_value( parsed_dsl_output_struct.LineState );
+end
+
+
 % some command return unscaled data, so scale according to T-REC-G.997.1-201902
 if isfield(parsed_dsl_output_struct, 'Data')
 	parsed_dsl_output_struct.Data_orig = parsed_dsl_output_struct.Data;
@@ -1046,3 +1076,204 @@ in = inout;
 
 return;
 end
+
+
+function [ dsl_state_name, line_state_struct ] = fn_find_dsl_state_name_by_value( dsl_state_value )
+% These are defined in drv_dsl_cpe_api.h
+% dsl_state_value: can be either a string like 801 or 0x801 or a decimal
+% value
+orig_dsl_state_value = dsl_state_value;
+
+if ischar(dsl_state_value)
+	if strcmp(dsl_state_value(2), 'x')
+		dsl_state_value = dsl_state_value(3:end);
+	end
+	dsl_state_value = hex2dec(dsl_state_value);
+
+end
+
+line_state_struct = [];
+
+
+%    /** Line State is not initialized!
+%        This state only exists within software. During link activation procedure
+%        it will be set initially before any DSL firmware response was received
+%        within FW download sequence. */
+linestate_strings.DSL_LINESTATE_NOT_INITIALIZED = '0x00000000';
+%    /** Line State: EXCEPTION.
+%        Entered upon an initialization or showtime failure or whenever a regular
+%        state transition cannot be followed.
+%        Corresponds to the following device specific state
+%        - Modem Status: FAIL_STATE */
+linestate_strings.DSL_LINESTATE_EXCEPTION = '0x00000001';
+%    /** Line State: NOT_UPDATED.
+%        Internal line state that indicates that the autoboot thread is
+%        stopped. */
+linestate_strings.DSL_LINESTATE_NOT_UPDATED = '0x00000010';
+%    /** Line State: DISABLED.
+%        This line state indicates that the line has been deactivated for one of
+%        the following reasons
+%        - line "tear down" has been performed within context of activated on-chip
+%          bonding handling (currently only valid for XWAY(TM) VRX200 or XWAY(TM)
+%          VRX300). DSL firmware was started in dual-port mode but the CO
+%          indicated that bonding is not used (remote PAF_Enable status is false).
+%        - line was manually disabled by the user via following command
+%          \ref DSL_FIO_AUTOBOOT_CONTROL_SET with nCommand equals
+%          \ref DSL_AUTOBOOT_CTRL_DISABLE. */
+linestate_strings.DSL_LINESTATE_DISABLED = '0x00000020';
+%    /** Line State: IDLE_REQUEST.
+%        Interim state between deactivation of line and the time this user request
+%        is acknowledged by the firmware. */
+linestate_strings.DSL_LINESTATE_IDLE_REQUEST = '0x000000FF';
+%    /** Line State: IDLE.
+%        Corresponds to the following device specific state
+%        - Modem Status: RESET_STATE */
+linestate_strings.DSL_LINESTATE_IDLE = '0x00000100';
+%    /** Line State: SILENT_REQUEST.
+%        Interim state between activation of line and the time this user request
+%        is acknowledged by the firmware. */
+linestate_strings.DSL_LINESTATE_SILENT_REQUEST = '0x000001FF';
+%    /** Line State: SILENT
+%        First State after a link initiation has been triggered. The CPE is
+%        sending handshake tones (silence from CO side).
+%        Corresponds to the following device specific state
+%        - Modem status: READY_STATE */
+linestate_strings.DSL_LINESTATE_SILENT = '0x00000200';
+%    /** Line State: HANDSHAKE
+%        Entered upon detection of a far-end GHS signal.
+%        Corresponds to the following device specific state
+%        - Modem status: GHS_STATE */
+linestate_strings.DSL_LINESTATE_HANDSHAKE = '0x00000300';
+%    /** Line State: BONDING_CLR
+%        Entered for the preparation and sending of a CLR message in case of
+%        bonding. The related bonding handshake primitives are implemented within
+%        dsl_cpe_control.
+%        Corresponds to the following device specific state
+%        - ADSL only patforms: Not supported
+%        - XWAY(TM) VRX200 and XWAY(TM) VRX300: Modem status:
+%          GHS_BONDING_CLR_STATE */
+linestate_strings.DSL_LINESTATE_BONDING_CLR = '0x00000310';
+%    /** Line State: T1413.
+%        Entered upon detection of a far-end ANSI T1.413 signal.
+%        Corresponds to the following device specific state
+%        - Modem status: T1413_STATE */
+linestate_strings.DSL_LINESTATE_T1413 = '0x00000370';
+%    /** Line State: FULL_INIT.
+%        Entered upon entry into the training phase of initialization following
+%        GHS start-up.
+%        Corresponds to the following device specific state
+%        - Modem status: FULLINIT_STATE */
+linestate_strings.DSL_LINESTATE_FULL_INIT = '0x00000380';
+%    /** Line State: SHORT INIT. */
+linestate_strings.DSL_LINESTATE_SHORT_INIT_ENTRY = '0x000003C0';
+%    /** Line State: DISCOVERY.
+%        This state is a substate of FULL_INIT and is not reported */
+linestate_strings.DSL_LINESTATE_DISCOVERY = '0x00000400';
+%    /** Line State: TRAINING.
+%        This state is a substate of FULL_INIT and is not reported */
+linestate_strings.DSL_LINESTATE_TRAINING = '0x00000500';
+%    /** Line State: ANALYSIS.
+%        This state is a substate of FULL_INIT and is not reported */
+linestate_strings.DSL_LINESTATE_ANALYSIS = '0x00000600';
+%    /** Line State: EXCHANGE.
+%        This state is a substate of FULL_INIT and is not reported */
+linestate_strings.DSL_LINESTATE_EXCHANGE = '0x00000700';
+%    /** Line State: SHOWTIME_NO_SYNC.
+%        Showtime is reached but TC-Layer is not in sync.
+%        Corresponds to the following device specific state
+%        - Modem status: STEADY_STATE_TC_NOSYNC */
+linestate_strings.DSL_LINESTATE_SHOWTIME_NO_SYNC = '0x00000800';
+%    /** Line State: SHOWTIME_TC_SYNC.
+%        Showtime is reached and TC-Layer is in sync. Modem is fully
+%        operational.
+%        Corresponds to the following device specific state
+%        - Modem status: STEADY_STATE_TC_SYNC */
+linestate_strings.DSL_LINESTATE_SHOWTIME_TC_SYNC = '0x00000801';
+%    /** Line State: ORDERLY_SHUTDOWN_REQUEST.
+%       Interim state between request (from API) to deactivation the line and
+%       acknowledgment from the DSL Firmware by indicating 'orderly local
+%       shutdown' or fail respective exception state.
+%       \note Due to timing limitations on updating the DSL Firmware line state the
+%             possible next line state could be whether "orderly shutdown"
+%             acknowledge (\ref DSL_LINESTATE_ORDERLY_SHUTDOWN) or directly the
+%             final fail/exception state (\ref DSL_LINESTATE_EXCEPTION) */
+linestate_strings.DSL_LINESTATE_ORDERLY_SHUTDOWN_REQUEST = '0x0000085F';
+%    /** Line State: ORDERLY_SHUTDOWN.
+%       This status is indicated by the DSL Firmware during orderly local link
+%       shutdown sequence. DSL link is down in this state and the next expected
+%       line state will be fail respective exception state (\ref
+%    linestate_strings.DSL_LINESTATE_EXCEPTION).
+%       Corresponds to the following device specific state
+%        - ADSL only platforms: Currently not supported
+%        - XWAY(TM) VRX200 and XWAY(TM) VRX300: Modem status: PRE_FAIL_STATE */
+linestate_strings.DSL_LINESTATE_ORDERLY_SHUTDOWN = '0x00000860';
+%    /** Line State: FASTRETRAIN.
+%        Currently not supported. */
+linestate_strings.DSL_LINESTATE_FASTRETRAIN = '0x00000900';
+%    /** Line State: LOWPOWER_L2. */
+linestate_strings.DSL_LINESTATE_LOWPOWER_L2 = '0x00000A00';
+%    /** Line State: DIAGNOSTIC ACTIVE. */
+linestate_strings.DSL_LINESTATE_LOOPDIAGNOSTIC_ACTIVE = '0x00000B00';
+%    /** Line State: DIAGNOSTIC_DATA_EXCHANGE. */
+linestate_strings.DSL_LINESTATE_LOOPDIAGNOSTIC_DATA_EXCHANGE = '0x00000B10';
+%    /** This status is used if the DELT data is already available within the
+%        firmware but has to be updated within the DSL API data elements. If
+%        the line is within this state the data within a DELT element is NOT
+%        consistent and shall be NOT read out by the upper layer software.  */
+linestate_strings.DSL_LINESTATE_LOOPDIAGNOSTIC_DATA_REQUEST = '0x00000B20';
+%    /** Line State: DIAGNOSTIC COMPLETE */
+linestate_strings.DSL_LINESTATE_LOOPDIAGNOSTIC_COMPLETE = '0x00000C00';
+%    /** Line State: RESYNC. */
+linestate_strings.DSL_LINESTATE_RESYNC            = '0x00000D00';
+%    /* *********************************************************************** */
+%    /* *** Line States that may bundle various sates that are not handled  *** */
+%    /* *** in detail at the moment                                         *** */
+%    /* *********************************************************************** */
+%    /** Line State: TEST.
+%        Common test status may include various test states */
+linestate_strings.DSL_LINESTATE_TEST = '0x01000000';
+%    /** Line State: any loop activated. */
+linestate_strings.DSL_LINESTATE_TEST_LOOP = '0x01000001';
+%    /** Line State: TEST_REVERB. */
+linestate_strings.DSL_LINESTATE_TEST_REVERB = '0x01000010';
+%    /** Line State: TEST_MEDLEY. */
+linestate_strings.DSL_LINESTATE_TEST_MEDLEY = '0x01000020';
+%    /** Line State: TEST_SHOWTIME_LOCK. */
+linestate_strings.DSL_LINESTATE_TEST_SHOWTIME_LOCK = '0x01000030';
+%    /** Line State: TEST_QUIET. */
+linestate_strings.DSL_LINESTATE_TEST_QUIET = '0x01000040';
+%    /** Line State: FILTERDETECTION_ACTIVE. */
+linestate_strings.DSL_LINESTATE_TEST_FILTERDETECTION_ACTIVE = '0x01000050';
+%    /** Line State: FILTERDETECTION_COMPLETE. */
+linestate_strings.DSL_LINESTATE_TEST_FILTERDETECTION_COMPLETE = '0x01000060';
+%     /** Line State: LOWPOWER_L3. */
+linestate_strings.DSL_LINESTATE_LOWPOWER_L3 = '0x02000000';
+%    /** Line State: All line states that are not assigned at the moment */
+linestate_strings.DSL_LINESTATE_UNKNOWN = '0x03000000';
+
+line_state_struct.linestate_strings = linestate_strings;
+
+% create two list of state_name and state_value (in decimal)
+
+
+line_states_list = fieldnames(linestate_strings);
+state_name_list = cell(size(line_states_list));
+state_value_list = zeros(size(line_states_list));
+
+for i_state = 1 : length(line_states_list)
+	cur_state_name_string = line_states_list{i_state};
+	cur_state_name = regexprep(cur_state_name_string, '^DSL_LINESTATE_', '');
+	state_name_list{i_state} = cur_state_name;
+	state_value_list(i_state) = hex2dec(linestate_strings.(cur_state_name_string)(3:end)); % 0xNNN chop off the leading 0x string before conversion
+	
+	if (dsl_state_value == state_value_list(i_state))
+		dsl_state_name = cur_state_name;
+	end
+end	
+line_state_struct.state_name_list = state_name_list;
+line_state_struct.state_value_list = state_value_list;
+
+return
+end
+
+
