@@ -101,7 +101,7 @@ end
 % just a small enough subset for quick and dirty monitoring
 collect_sub_cmd_subset = {'g997bang', 'g997gang', 'g997sang', 'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'ptsg', 'g997listrg'};
 % everything
-%collect_sub_cmd_subset = {};
+collect_sub_cmd_subset = {};
 
 if ~(load_data)
 	current_dsl_struct = struct();
@@ -124,10 +124,10 @@ if ~(load_data)
 	
 	
 	% DATA collection
-	% zero ARG commands: dsmstatg cause issues
+	% zero ARG commands: dsmstatg cause issues, , 'g997dfr'
 	zero_arg_sub_cmd_string_list = {'acog', 'asecg', 'asg', 'aufg', 'bpstg', 'bpsg', 'vig', 'vpcg', 'ptsg', 'dsmsg', 'dsmcg', 'pmcg', 'pmlictg', 'llcg', 'lsg', ...
 		'meipocg', 'nsecg', 'g997xtusesg', 'g997xtusecg', 'g997upbosg', ...
-		'rusg', 'sisg', 'tmsg', 'isg', 'lecg', 'g997dfr', ...
+		'rusg', 'sisg', 'tmsg', 'isg', 'lecg', ...
 		'dbgmdg', 'dsmmcg', 'dsmstatg', 'fdsg', 'g997lacg', 'g997ltsg', 'g997lpmcg', 'g997pmsg', 'g997lisg'};
 	current_sub_cmd_string_list = zero_arg_sub_cmd_string_list;
 	if ~isempty(collect_sub_cmd_subset)
@@ -1540,6 +1540,19 @@ error_value_list(end+1) = -31;
 %    /* *********************************************************************** */
 %    /* *** Common Error Codes                                              *** */
 %    /* *********************************************************************** */
+% from https://dev.iopsys.eu/intel/drv_dsl_cpe_api/blob/master/src/include/drv_dsl_cpe_api_error.h
+%    /** The command is not allowed in current autoboot state. */
+error_name_list{end+1} = 'DSL_ERR_NOT_SUPPORTED_IN_CURRENT_AUTOBOOT_STATE';
+error_value_list(end+1) = -46;
+%    /** The requested values are not supported in the upstream
+%       (US) direction */
+error_name_list{end+1} = 'DSL_ERR_NOT_SUPPORTED_IN_US_DIRECTION';
+error_value_list(end+1) = -45;
+%    /** The requested values are not supported in the downstream
+%       (DS) direction */
+error_name_list{end+1} = 'DSL_ERR_NOT_SUPPORTED_IN_DS_DIRECTION';
+error_value_list(end+1) = -44;
+
 %    /** invalid DSL mode */
 error_name_list{end+1} = 'DSL_ERR_NO_FIRMWARE_LOADED';
 error_value_list(end+1) = -43;
@@ -1850,12 +1863,13 @@ error_value_list(end+1) = 500;
 % error_name_list{end+1} = 'DSL_WRN_LAST';
 % error_value_list(end+1) = 10000;
 
-% FIXME these are error codes not described in the lantiq
-% drv_dsl_cpe_api_error.h file but encountered from the driver
-% to make this still run, manually add the respective error/warning codes
-% with the appropriate DSL_ERR/DSL_WRN prefixes
-error_name_list{end+1} = 'DSL_ERR_ERRORCODE_UNKNOWN_IN_OLD_API_DOCUMENTATION';
-error_value_list(end+1) = -45;
+% % FIXME these are error codes not described in the lantiq
+% % drv_dsl_cpe_api_error.h file but encountered from the driver
+% % to make this still run, manually add the respective error/warning codes
+% % with the appropriate DSL_ERR/DSL_WRN prefixes
+% % -45 added in the correct fashion
+% %error_name_list{end+1} = 'DSL_ERR_ERRORCODE_UNKNOWN_IN_OLD_API_DOCUMENTATION';
+% %error_value_list(end+1) = -45;
 
 
 
