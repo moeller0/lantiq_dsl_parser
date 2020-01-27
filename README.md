@@ -15,6 +15,12 @@ to reflect your own situation.
 
 Please note that without passwordless ssh access configured between collection host and modem host, this will ask for the modem-host's password for every collection item, which effectively makes this unusable.
 Testing so far:
-OS: macosx, Linux
-Link Type: VDSL2 (G993.5, VDSL2 Vectoring)
-Software: Matlab 2016a, Octave (5.1.0, 4.2.2)
+
+OS: 
+macosx, Linux
+
+Link Type: 
+VDSL2 (G993.5, VDSL2 Vectoring)
+
+Software: 
+Matlab 2016a, Octave (5.1.0, 4.2.2)
