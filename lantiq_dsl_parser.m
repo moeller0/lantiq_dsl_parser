@@ -1,4 +1,4 @@
-function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
+function [ current_dsl_struct ] = lantiq_dsl_parser()
 %LANTIQ_DSL_PARSER Summary of this function goes here
 %   Detailed explanation goes here
 % This works with matlab and octave (modulo the combining of existing
@@ -16,16 +16,22 @@ function [ current_dsl_struct ] = lantiq_dsl_parser( input_args )
 %	collect statistics over collected per bin data (min, max, mode, ...)
 %	refactor plotting into its own function
 
+% the following two will make my lantiq router/modem reboot, probably bug
+% in driver or fimware
+%   g997dhling,    G997_DeltHLINGet
+%   g997dhlinsg,   G997_DeltHLINScaleGet
+% potentially promlematic: g997lpmcg
+
 
 
 % either collect, store and process data, or load and process data
 load_data = 0;
 
-process_bitallocation = 1;
+process_bitallocation = 0;
 process_bitallocation2 = 1;
-process_gainallocation = 1;
+process_gainallocation = 0;
 process_gainallocation2 = 1;
-process_snrallocation = 1;
+process_snrallocation = 0;
 process_snrallocation2 = 1;
 process_deltaSNR = 1;
 process_deltaHLOG = 1;
@@ -85,11 +91,17 @@ dsl_sub_cmd_arg_string = [];
 % make octave write disp/error output to screen immediately
 if isoctave()
 	more off
-end
+end 
 
-[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, 'lsg', dsl_sub_cmd_arg_string );
+% for quick and dirty testing just call fn_call_dsl_cmd_via_ssh manually
+%[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, 'lsg', dsl_sub_cmd_arg_string );
 
-
+% restrict the data collection to a subset of the available sub-commands,
+% if empty, collect all.
+% just a small enough subset for quick and dirty monitoring
+collect_sub_cmd_subset = {'g997bang', 'g997gang', 'g997sang', 'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'ptsg', 'g997listrg'};
+% everything
+%collect_sub_cmd_subset = {};
 
 if ~(load_data)
 	current_dsl_struct = struct();
@@ -110,23 +122,37 @@ if ~(load_data)
 		current_dsl_struct.subcmd_names_list  = tmp_list((2:2:num_subcmds_and_names));
 	end
 	
+	
 	% DATA collection
-	% zero ARG commands: dsmstatg, bpsg cause issues
-	zero_arg_sub_cmd_string_list = {'bpsg', 'vig', 'vpcg', 'ptsg', 'dsmsg', 'dsmcg', 'bpstg', 'pmcg', 'pmlictg', 'llcg', 'lsg', ...
+	% zero ARG commands: dsmstatg cause issues
+	zero_arg_sub_cmd_string_list = {'acog', 'asecg', 'asg', 'aufg', 'bpstg', 'bpsg', 'vig', 'vpcg', 'ptsg', 'dsmsg', 'dsmcg', 'pmcg', 'pmlictg', 'llcg', 'lsg', ...
 		'meipocg', 'nsecg', 'g997xtusesg', 'g997xtusecg', 'g997upbosg', ...
-		'rusg', 'sisg', 'tmsg'};
+		'rusg', 'sisg', 'tmsg', 'isg', 'lecg', 'g997dfr', ...
+		'dbgmdg', 'dsmmcg', 'dsmstatg', 'fdsg', 'g997lacg', 'g997ltsg', 'g997lpmcg', 'g997pmsg', 'g997lisg'};
+	current_sub_cmd_string_list = zero_arg_sub_cmd_string_list;
+	if ~isempty(collect_sub_cmd_subset)
+		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
+		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
+	end
 		%'t1413xtuorg', 't1413xtuovrg', 't1413xturrg', 't1413xturvrg' ???
-	for i_zero_arg_sub_cmd_string = 1 : length(zero_arg_sub_cmd_string_list)
-		dsl_sub_cmd_string = zero_arg_sub_cmd_string_list{i_zero_arg_sub_cmd_string};
+	for i_zero_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
+		dsl_sub_cmd_string = current_sub_cmd_string_list{i_zero_arg_sub_cmd_string};
 		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string)] = ...
 			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, []);
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
 
+	
 	% commands with one argument: DslMode
-	single_arg_sub_cmd_string_list = {'rccg', 'sicg'};
-	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
-		dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
+	single_arg_sub_cmd_string_list = {'rccg', 'sicg', 'alig', 'locg'};
+	% alig, locg,  really do not use DslMode, but require one parameter
+	current_sub_cmd_string_list = single_arg_sub_cmd_string_list;
+	if ~isempty(collect_sub_cmd_subset)
+		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
+		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
+	end
+	for i_single_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
+		dsl_sub_cmd_string = current_sub_cmd_string_list{i_single_arg_sub_cmd_string};
 		for i_DslMode = 1:length(DslMode_list)
 			cur_DslMode = DslMode_list(i_DslMode);
 			cur_DslMode_string = [num2str(cur_DslMode)];
@@ -137,11 +163,15 @@ if ~(load_data)
 	end
 	
 	
-	
 	% commands with one argument: HistoryInterval
 	single_arg_sub_cmd_string_list = {'pmlicsg', 'pmlic1dg', 'pmlic15mg'};
-	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
-		dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
+	current_sub_cmd_string_list = single_arg_sub_cmd_string_list;
+	if ~isempty(collect_sub_cmd_subset)
+		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
+		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
+	end
+	for i_single_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
+		dsl_sub_cmd_string = current_sub_cmd_string_list{i_single_arg_sub_cmd_string};
 		for i_HistoryInterval = 1:length(HistoryInterval_list)
 			cur_HistoryInterval = HistoryInterval_list(i_HistoryInterval);
 			cur_HistoryInterval_string = [num2str(cur_HistoryInterval)];
@@ -151,11 +181,17 @@ if ~(load_data)
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
 	
+	
 	% commands with one argument: Direction
 	single_arg_sub_cmd_string_list = {'osg', 'g997bansg', 'g997bang', 'g997gansg', 'g997gang', 'g997sansg', 'g997sang', 'lfsg', 'g997lspbg', ...
-		'g997lig', 'g997ansg', 'g997listrg', 'g997rasg', 'pmlsctg', 'pmlesctg'};
-	for i_single_arg_sub_cmd_string = 1 : length(single_arg_sub_cmd_string_list)
-		dsl_sub_cmd_string = single_arg_sub_cmd_string_list{i_single_arg_sub_cmd_string};
+		'g997lig', 'g997ansg', 'g997listrg', 'g997rasg', 'pmlsctg', 'pmlesctg', 'g997amlfcg', 'g997lfsg'};
+	current_sub_cmd_string_list = single_arg_sub_cmd_string_list;
+	if ~isempty(collect_sub_cmd_subset)
+		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
+		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
+	end
+	for i_single_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
+		dsl_sub_cmd_string = current_sub_cmd_string_list{i_single_arg_sub_cmd_string};
 		for i_dir = 1:length(direction_list)
 			cur_dir = direction_list(i_dir);
 			cur_dir_string = [num2str(cur_dir)];
@@ -167,8 +203,13 @@ if ~(load_data)
 	
 	% commands with two arguments: Direction and DeltDataType
 	dual_arg_sub_cmd_string_list = {'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'g997lsg','dsnrg'};
-	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
-		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+	current_sub_cmd_string_list = dual_arg_sub_cmd_string_list;
+	if ~isempty(collect_sub_cmd_subset)
+		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
+		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
+	end
+	for i_dual_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
+		dsl_sub_cmd_string = current_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
 		for i_dir = 1:length(direction_list)
 			cur_dir = direction_list(i_dir);
 			cur_dir_string = [num2str(cur_dir)];
@@ -183,10 +224,16 @@ if ~(load_data)
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
 	
+	
 	% commands with two arguments: Direction and HistoryInterval
 	dual_arg_sub_cmd_string_list = {'pmlscsg', 'pmlsc1dg', 'pmlsc15mg', 'pmlescsg', 'pmlesc1dg', 'pmlesc15mg'};
-	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
-		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+	current_sub_cmd_string_list = dual_arg_sub_cmd_string_list;
+	if ~isempty(collect_sub_cmd_subset)
+		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
+		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
+	end
+	for i_dual_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
+		dsl_sub_cmd_string = current_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
 		for i_dir = 1:length(direction_list)
 			cur_dir = direction_list(i_dir);
 			cur_dir_string = [num2str(cur_dir)];
@@ -201,10 +248,16 @@ if ~(load_data)
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
 	
+	
 	% commands with two arguments: Channel and Direction
-	dual_arg_sub_cmd_string_list = {'g997fpsg', 'g997csg', 'fpsg', 'g997cdrtcg', 'pmcctg', 'pmdpctg'};
-	for i_dual_arg_sub_cmd_string = 1 : length(dual_arg_sub_cmd_string_list)
-		dsl_sub_cmd_string = dual_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+	dual_arg_sub_cmd_string_list = {'g997fpsg', 'g997csg', 'fpsg', 'g997cdrtcg', 'pmcctg', 'pmdpctg', 'g997amdpfcg', 'g997dpfsg'};
+	current_sub_cmd_string_list = dual_arg_sub_cmd_string_list;
+	if ~isempty(collect_sub_cmd_subset)
+		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
+		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
+	end
+	for i_dual_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
+		dsl_sub_cmd_string = current_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
 		
 		for i_chan = 1: length(channel_list)
 			cur_chan = channel_list(i_chan);
@@ -219,11 +272,41 @@ if ~(load_data)
 		end
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
+
+	
+	% commands with two arguments: DslMode and Direction
+	dual_arg_sub_cmd_string_list = {'g997racg', 'lfcg'};
+	current_sub_cmd_string_list = dual_arg_sub_cmd_string_list;
+	if ~isempty(collect_sub_cmd_subset)
+		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
+		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
+	end
+	for i_dual_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
+		dsl_sub_cmd_string = current_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+		for i_DslMode = 1:length(DslMode_list)
+			cur_DslMode = DslMode_list(i_DslMode);
+			cur_DslMode_string = [num2str(cur_DslMode)];
+			for i_dir = 1:length(direction_list)
+				cur_dir = direction_list(i_dir);
+				cur_dir_string = [num2str(cur_dir)];
+				[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['DslMode_', cur_DslMode_string]).(['Direction_', cur_dir_string])] = ...
+					fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, [cur_DslMode_string, ' ', cur_dir_string]);
+			end
+			
+		end
+		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+	end
+	
 	
 	% commands with three arguments: Channel and Direction and HistoryInterval
 	triple_arg_sub_cmd_string_list = {'pmdpcsg', 'pmdpc1dg', 'pmdpc15mg', 'pmccsg', 'pmcc1dg', 'pmcc15mg'};
-	for i_dual_arg_sub_cmd_string = 1 : length(triple_arg_sub_cmd_string_list)
-		dsl_sub_cmd_string = triple_arg_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
+	current_sub_cmd_string_list = triple_arg_sub_cmd_string_list;
+	if ~isempty(collect_sub_cmd_subset)
+		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
+		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
+	end
+	for i_dual_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
+		dsl_sub_cmd_string = current_sub_cmd_string_list{i_dual_arg_sub_cmd_string};
 		
 		for i_chan = 1: length(channel_list)
 			cur_chan = channel_list(i_chan);
@@ -557,8 +640,12 @@ while (keep_parsing)
 	cur_key = strtrim(cur_key);
 	cur_struct_key = cur_key;
 	% struct fields have issues with starting with n???
-	if strcmp(cur_struct_key(1), 'n')
-		cur_struct_key(1) = [];
+	if strcmp(cur_struct_key(1), 'n') 
+		if (strcmp(cur_struct_key(2), '_'))
+			cur_struct_key(1) = 'N';
+		else
+			cur_struct_key(1) = [];
+		end
 	end
 	% get rid of taboo characters in the key name so that the key can be
 	% turned into a matlab structure fieldname
@@ -605,7 +692,13 @@ while (keep_parsing)
 		% now emulate strtok and remove the extracted data from the
 		% unprocessed_string, in case there are key-value pairs behind it
 		unprocessed_string = unprocessed_string(douple_quote_idx(end)+1:end);
-		return_struct = fn_convert_and_add_nData_to_struct(return_struct, cur_value, return_struct.Format);
+		if isfield(return_struct, 'Format')
+			return_struct = fn_convert_and_add_nData_to_struct(return_struct, cur_value, return_struct.Format);
+		elseif isfield(return_struct, 'Length')
+			% special case 'alig', which returns 8 values as nData
+			return_struct.Data = str2num(strtrim(cur_value));
+			return_struct.Data_name = 'alig';
+		end
 	end
 end
 
