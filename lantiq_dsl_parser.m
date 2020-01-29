@@ -23,6 +23,7 @@ function [ current_dsl_struct ] = lantiq_dsl_parser()
 % potentially promlematic: g997lpmcg
 
 
+dbstop if error
 
 % either collect, store and process data, or load and process data
 load_data = 0;
@@ -91,10 +92,11 @@ dsl_sub_cmd_arg_string = [];
 % make octave write disp/error output to screen immediately
 if isoctave()
 	more off
-end 
+end
 
 % for quick and dirty testing just call fn_call_dsl_cmd_via_ssh manually
 %[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, 'lsg', dsl_sub_cmd_arg_string );
+%[ssh_status, dsl_cmd_output ] = fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, 'g997lig', dsl_sub_cmd_arg_string );
 
 % restrict the data collection to a subset of the available sub-commands,
 % if empty, collect all.
@@ -102,6 +104,9 @@ end
 collect_sub_cmd_subset = {'g997bang', 'g997gang', 'g997sang', 'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'ptsg', 'g997listrg'};
 % everything
 collect_sub_cmd_subset = {};
+%collect_sub_cmd_subset = {'g997lig'};
+
+
 
 if ~(load_data)
 	current_dsl_struct = struct();
@@ -134,14 +139,14 @@ if ~(load_data)
 		%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
 		current_sub_cmd_string_list = current_sub_cmd_string_list(ismember(current_sub_cmd_string_list, collect_sub_cmd_subset));
 	end
-		%'t1413xtuorg', 't1413xtuovrg', 't1413xturrg', 't1413xturvrg' ???
+	%'t1413xtuorg', 't1413xtuovrg', 't1413xturrg', 't1413xturvrg' ???
 	for i_zero_arg_sub_cmd_string = 1 : length(current_sub_cmd_string_list)
 		dsl_sub_cmd_string = current_sub_cmd_string_list{i_zero_arg_sub_cmd_string};
 		[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string)] = ...
 			fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, []);
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
-
+	
 	
 	% commands with one argument: DslMode
 	single_arg_sub_cmd_string_list = {'rccg', 'sicg', 'alig', 'locg'};
@@ -272,7 +277,7 @@ if ~(load_data)
 		end
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
-
+	
 	
 	% commands with two arguments: DslMode and Direction
 	dual_arg_sub_cmd_string_list = {'g997racg', 'lfcg'};
@@ -326,12 +331,12 @@ if ~(load_data)
 		end
 		current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
 	end
-		
+	
 	% save data out
 	disp(['Saving data to ', fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat'])]);
 	
 	if isoctave()
-		 save(fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat']), 'current_dsl_struct', '-mat7-binary');
+		save(fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat']), 'current_dsl_struct', '-mat7-binary');
 	else
 		save(fullfile(mat_save_dir, [mat_prefix, '.', current_datetime, '.mat']), 'current_dsl_struct');
 	end
@@ -640,7 +645,7 @@ while (keep_parsing)
 	cur_key = strtrim(cur_key);
 	cur_struct_key = cur_key;
 	% struct fields have issues with starting with n???
-	if strcmp(cur_struct_key(1), 'n') 
+	if strcmp(cur_struct_key(1), 'n')
 		if (strcmp(cur_struct_key(2), '_'))
 			cur_struct_key(1) = 'N';
 		else
@@ -657,7 +662,7 @@ while (keep_parsing)
 	end
 	
 	%g997listrg results can contain spaces/char(10) inside the string values
-	% nReturn=0 nDirection=1 G994VendorID="..BDCM.." SystemVendorID="..BDCM.." 
+	% nReturn=0 nDirection=1 G994VendorID="..BDCM.." SystemVendorID="..BDCM.."
 	% VersionNumber="v12.03.90      " SerialNumber="eq nr port:33  oemid softwarerev" SelfTestResult=0 XTSECapabilities=(00,00,00,00,00,00,00,02)
 	if ismember(cur_key, {'G994VendorID', 'SystemVendorID', 'VersionNumber', 'SerialNumber'}) && strcmp(unprocessed_string(1), '"')
 		quote_idx = strfind(unprocessed_string, '"');
@@ -809,7 +814,7 @@ if isfield(parsed_dsl_output_struct, 'Return')
 	parsed_dsl_output_struct.return_code = return_code;
 	
 	if (ret_val ~= 0)
-		disp(['Calling ', lantig_dsl_cmd_string, ' resulted in return code: ', num2str(ret_val), ': ', return_code]);	
+		disp(['Calling ', lantig_dsl_cmd_string, ' resulted in return code: ', num2str(ret_val), ': ', return_code]);
 		if ~isempty(regexp(dsl_cmd_output_string, 'wrong number of parameters'))
 			disp(dsl_cmd_output_string);
 		end
@@ -823,6 +828,20 @@ switch dsl_sub_cmd_string
 	case 'lsg'
 		% get a human readable name for the LineState
 		parsed_dsl_output_struct.LineState_name = fn_find_dsl_state_name_by_value( parsed_dsl_output_struct.LineState );
+	case 'g997lig'
+		% the string version of this, g997listrg does not carry T.35 code
+		% or Vendor specific indformation, but '2E'/46 values at those
+		% positions instead
+		% see 9.3.3.1 Vendor ID information block in
+		% ITU-T G.994.1 "Handshake procedures for digital subscriber line
+		% transceivers"
+		% G994VendorID: first two bytes/chars ITU T.35 country code, next 4
+		% byte vendor code, fnal two bytes vendor specific information
+		G994VendorID_code = parsed_dsl_output_struct.G994VendorID;
+		parsed_dsl_output_struct.G994VendorID_T35Code_hexstring = G994VendorID_code(2:6); % if the first byte is not all zero, the second byte has to be all zero
+		parsed_dsl_output_struct.G994VendorID_VendorCode_hexstring = G994VendorID_code(8:18);
+		parsed_dsl_output_struct.G994VendorID_VendorCode_string = fn_convert_string_of_hex_to_string(G994VendorID_code(8:18), ',');
+		parsed_dsl_output_struct.G994VendorID_VendorSpecificInformation_hexstring = G994VendorID_code(20:end-1);
 end
 
 
@@ -1025,7 +1044,7 @@ switch type
 		output_rect = [left_edge_cm bottom_edge_cm rect_w rect_h];	% left, bottom, width, height
 		%output_rect = [1.0 2.0 27.7 12.0];
 		set(gcf_h, 'PaperSize', [rect_w+2*left_edge_cm*fraction rect_h+2*bottom_edge_cm*fraction], 'PaperOrientation', 'landscape', 'PaperUnits', 'centimeters');
-
+		
 	case 'A4_landscape'
 		left_edge_cm = 0.05;
 		bottom_edge_cm = 0.05;
@@ -1036,7 +1055,7 @@ switch type
 		output_rect = [left_edge_cm bottom_edge_cm rect_w rect_h];	% left, bottom, width, height
 		%output_rect = [1.0 2.0 27.7 12.0];
 		set(gcf_h, 'PaperSize', [rect_w+2*left_edge_cm*fraction rect_h+2*bottom_edge_cm*fraction], 'PaperOrientation', 'portrait', 'PaperUnits', 'centimeters');
-			
+		
 		
 	case 'europe'
 		output_rect = [1.0 2.0 27.7 12.0];
@@ -1126,7 +1145,7 @@ end
 type_list = cell([1 n_values_per_cell]);
 name_list = cell([1 n_values_per_cell]);
 for i_values = 1 : n_values_per_cell
-	[cur_format, processed_in_Format] = strtok(processed_in_Format, field_separator);	
+	[cur_format, processed_in_Format] = strtok(processed_in_Format, field_separator);
 	processed_in_Format = processed_in_Format(2:end); % get rid of the delimiter
 	[proto_name, proto_type] = strtok(cur_format, '(');
 	name_list{i_values} = sanitize_name_for_matlab(proto_name(2:end));
@@ -1151,7 +1170,7 @@ for i_val = 1: length(value_list)
 		% split, split, split
 		[cur_value, processed_cur_val] = strtok(processed_cur_val, field_separator);
 		processed_cur_val = processed_cur_val(2:end); % get rid of the delimiter
-			
+		
 		switch cur_type
 			case 'hex'
 				out_struct.(cur_name)(i_val) = hex2dec(cur_value);
@@ -1159,7 +1178,7 @@ for i_val = 1: length(value_list)
 				out_struct.(cur_name)(i_val) = str2num(cur_value);
 			otherwise
 				error(['Encountered unknown Data_type: ', cur_type]);
-		end	
+		end
 	end
 end
 
@@ -1189,19 +1208,19 @@ if ischar(dsl_state_value)
 		dsl_state_value = dsl_state_value(3:end);
 	end
 	dsl_state_value = hex2dec(dsl_state_value);
-
+	
 end
 
 line_state_struct = [];
 
 % /******************************************************************************
-% 
+%
 %                               Copyright (c) 2014
 %                             Lantiq Deutschland GmbH
-% 
+%
 %   For licensing information, see the file 'LICENSE_lantiq' in the root folder of
 %   this software module.
-% 
+%
 % ******************************************************************************/
 %
 %    /** Line State is not initialized!
@@ -1378,7 +1397,7 @@ for i_state = 1 : length(line_states_list)
 	if (dsl_state_value == state_value_list(i_state))
 		dsl_state_name = cur_state_name;
 	end
-end	
+end
 line_state_struct.state_name_list = state_name_list;
 line_state_struct.state_value_list = state_value_list;
 
@@ -1404,11 +1423,11 @@ error_idx = find(error_code_struct.error_value_list == error_value);
 
 if isempty(error_idx)
 	error(['Unknown error value (', num2str(error_value),') encountered.']);
-end	
+end
 
 if (length(error_idx) > 1)
 	error(['Error value (', num2str(error_value),') not unique.']);
-end	
+end
 error_name = error_code_struct.error_name_list{error_idx};
 
 return
@@ -1424,15 +1443,15 @@ error_value_list = [];
 
 
 % /******************************************************************************
-% 
+%
 %                               Copyright (c) 2014
 %                             Lantiq Deutschland GmbH
-% 
+%
 %   For licensing information, see the file 'LICENSE_lantiq' in the root folder of
 %   this software module.
-% 
+%
 % ******************************************************************************/
-% 
+%
 % /**
 %    Defines all possible error codes.
 %    Error codes are negative, warning codes are positive and success has the
@@ -1443,7 +1462,7 @@ error_value_list = [];
 %    /* *********************************************************************** */
 %    /* *** Error Codes Start here !                                        *** */
 %    /* *********************************************************************** */
-% 
+%
 %    /* *********************************************************************** */
 %    /* *** Error Codes for bonding functionality                           *** */
 %    /* *********************************************************************** */
@@ -1497,21 +1516,21 @@ error_value_list(end+1) = -401;
 %    /** parameter out of range */
 error_name_list{end+1} = 'DSL_ERR_PARAM_RANGE';
 error_value_list(end+1) = -400;
-% 
+%
 %    /* *********************************************************************** */
 %    /* *** Error Codes for EOC handler                                     *** */
 %    /* *********************************************************************** */
 %    /** transmission error */
 error_name_list{end+1} = 'DSL_ERR_CEOC_TX_ERR';
 error_value_list(end+1) = -300;
-% 
+%
 %    /* *********************************************************************** */
 %    /* *** Error Codes for modem handling                                  *** */
 %    /* *********************************************************************** */
 %    /** Modem is not ready */
 error_name_list{end+1} = 'DSL_ERR_MODEM_NOT_READY';
 error_value_list(end+1) = -201;
-% 
+%
 %    /* *********************************************************************** */
 %    /* *** Error Codes for Autoboot handler                                *** */
 %    /* *********************************************************************** */
@@ -1525,7 +1544,7 @@ error_value_list(end+1) = -102;
 %    /** Autoboot thread is busy */
 error_name_list{end+1} = 'DSL_ERR_AUTOBOOT_BUSY';
 error_value_list(end+1) = -101;
-% 
+%
 %    /* *********************************************************************** */
 %    /* *** Error Codes for IOCTL handler                                   *** */
 %    /* *********************************************************************** */
@@ -1536,7 +1555,7 @@ error_value_list(end+1) = -32;
 %    /** Invalid parameter is passed */
 error_name_list{end+1} = 'DSL_ERR_INVALID_PARAMETER';
 error_value_list(end+1) = -31;
-% 
+%
 %    /* *********************************************************************** */
 %    /* *** Common Error Codes                                              *** */
 %    /* *********************************************************************** */
@@ -1707,7 +1726,7 @@ error_value_list(end+1) = 0;
 %    /* *********************************************************************** */
 %    /* *** Warning Codes Start here !                                      *** */
 %    /* *********************************************************************** */
-% 
+%
 %    /* *********************************************************************** */
 %    /* *** Common Warning Codes                                            *** */
 %    /* *********************************************************************** */
@@ -1797,7 +1816,7 @@ error_value_list(end+1) = 101;
 %    /** Previous External Trigger is not handled*/
 error_name_list{end+1} = 'DSL_WRN_PM_PREVIOUS_EXTERNAL_TRIGGER_NOT_HANDLED';
 error_value_list(end+1) = 102;
-% 
+%
 %    /** PM poll cycle not updated due to the active Burnin Mode. Poll cycle
 %        configuration changes will be loaded automatically after disabling
 %        Burnin Mode*/
@@ -1871,11 +1890,25 @@ error_value_list(end+1) = 500;
 % %error_name_list{end+1} = 'DSL_ERR_ERRORCODE_UNKNOWN_IN_OLD_API_DOCUMENTATION';
 % %error_value_list(end+1) = -45;
 
-
-
 error_code_struct.error_name_list = error_name_list;
 error_code_struct.error_value_list = error_value_list;
 
+return
+end
+
+function [ string_from_hex_char_string ] = fn_convert_string_of_hex_to_string( hex_char_string, delimiter )
+
+string_from_hex_char_string = '';
+
+processed_hex_char_string = [delimiter, hex_char_string];
+
+while length(processed_hex_char_string) > 0
+	[current_hex_char, processed_hex_char_string] = strtok(processed_hex_char_string(2:end), delimiter);
+	
+	string_from_hex_char_string = [string_from_hex_char_string, char(hex2dec(current_hex_char))];
+end
 
 return
 end
+
+
