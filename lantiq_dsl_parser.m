@@ -36,9 +36,11 @@ function [ current_dsl_struct ] = lantiq_dsl_parser(data_source, data_fqn)
 if ~(isoctave)
 	dbstop if error;
 end
+fq_mfilename = mfilename('fullpath');
+mfilepath = fileparts(fq_mfilename);
 
-timestamps.(mfilename).start = tic;
-
+disp(mfilepath);
+return
 % either collect, store and process data, or load and process data
 
 % data_source_string: dsl_cmd, load_single, load_all
@@ -103,8 +105,11 @@ out_format = 'pdf';
 %out_format = 'png';
 
 mat_prefix = 'lantiq_dsl_data';
-out_dir = fullfile(pwd, out_format);
-mat_save_dir = fullfile(pwd, 'dsl_cmd_run_data');
+out_dir = fullfile(mfilepath, out_format);
+if ~isdir(out_dir)
+	mkdir(out_dir);
+end
+mat_save_dir = fullfile(mfilepath, 'dsl_cmd_run_data');
 if ~isdir(mat_save_dir)
 	mkdir(mat_save_dir);
 end
@@ -129,7 +134,7 @@ end
 % restrict the data collection to a subset of the available sub-commands,
 % if empty, collect all.
 % just a small enough subset for quick and dirty monitoring
-collect_sub_cmd_subset = {'g997bang', 'g997gang', 'g997sang', 'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'ptsg', 'g997listrg'};
+collect_sub_cmd_subset = {'g997bang', 'g997gang', 'g997sang', 'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'ptsg', 'g997listrg', 'rtsg', 'osg'};
 % everything
 collect_sub_cmd_subset = {};
 %collect_sub_cmd_subset = {'g997lig'};
@@ -955,7 +960,7 @@ if isfield(parsed_dsl_output_struct, 'Data')
 			
 			% T-REC-G.997.1-201902: 7.5.1.28.3 Downstream SNR(f) (SNRpsds)
 			% This parameter is an array of real values in decibels for downstream SNR(f). Each array entry represents
-			% the SNR(f = i × SNRGds × ?f) value for a particular subcarrier group index i, ranging from 0 to MIN(NSds,511).
+			% the SNR(f = i ï¿½ SNRGds ï¿½ ?f) value for a particular subcarrier group index i, ranging from 0 to MIN(NSds,511).
 			% The SNR(f) is represented as (?32 + snr(i)/2), where snr(i) is an unsigned integer in the range from 0 to 254.
 			% A special value indicates that no measurement could be done for this subcarrier group because it is out of the
 			% passband or that the SNR is out of range to be represented. The same SNRpsds format shall be applied to ITU-T G.992.3
@@ -970,7 +975,7 @@ if isfield(parsed_dsl_output_struct, 'Data')
 			
 			% T-REC-G.997.1-201902: 7.5.1.26.6 Downstream H(f) logarithmic representation (HLOGpsds)
 			% This parameter is an array of real values in decibels for downstream Hlog(f). Each array entry represents
-			% the real Hlog(f = i × HLOGGds × ?f) value for a particular subcarrier group subcarrier index i, ranging
+			% the real Hlog(f = i ï¿½ HLOGGds ï¿½ ?f) value for a particular subcarrier group subcarrier index i, ranging
 			% from 0 to MIN(NSds,511). The real Hlog(f) value is represented as (6 ? m(i)/10), where m(i) is an
 			% unsigned integer in the range from 0 to 1 022. A special value indicates that no measurement could be
 			% done for this subcarrier group because it is out of the passband or that the attenuation is out of range to be represented.
@@ -984,7 +989,7 @@ if isfield(parsed_dsl_output_struct, 'Data')
 			
 			% T-REC-G.997.1-201902: 7.5.1.27.3 Downstream QLN(f) (QLNpsds)
 			% This parameter is an array of real values in decibels with reference to 1 mW per hertz for
-			% downstream QLN(f). Each array entry represents the QLN(f = i × QLNGds × ?f) value for a particular
+			% downstream QLN(f). Each array entry represents the QLN(f = i ï¿½ QLNGds ï¿½ ?f) value for a particular
 			% subcarrier group index i, ranging from 0 to MIN(NSds,511). The QLN(f) is represented as (?23 ? n(i)/2), where
 			% n(i) is an unsigned integer in the range from 0 to 254. A special value indicates that no measurement could
 			% be done for this subcarrier group because it is out of the passband or that the noise PSD is out of range to be represented.
