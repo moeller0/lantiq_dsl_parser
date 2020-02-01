@@ -1,0 +1,514 @@
+#from http://www.katpatuka.org/pub/doc/t.35.html
+# https://web.archive.org/web/20080908012640/http://www.katpatuka.org/pub/doc/t.35.html
+00
+Japan
+01
+Albania
+02
+Algeria
+03
+American Samoa
+04
+Germany
+05
+Anguilla
+06
+Antigua and Barbuda
+07
+Argentina
+08
+Ascension (see Saint Helena)
+09
+Australia
+0A
+Austria
+0B
+Bahamas
+0C
+Bahrain
+0D
+Bangladesh
+0E
+Barbados
+0F
+Belgium
+10
+Belize
+11
+Benin
+12
+Bermudas
+13
+Bhutan
+14
+Bolivia
+15
+Botswana
+16
+Brazil
+17
+British Antarctic Territory
+18
+British Indian Ocean Territory
+19
+British Virgin Islands
+1A
+Brunei Darussalam
+1B
+Bulgaria
+1C
+Myanmar
+1D
+Burundi
+1E
+Belarus
+1F
+Cameroon
+20
+Canada
+21
+Cape Verde
+22
+Cayman Islands
+23
+Central African Republic
+24
+Chad
+25
+Chile
+26
+China
+27
+Colombia
+28
+Comoros
+29
+Congo
+2A
+Cook Islands
+2B
+Costa Rica
+2C
+Cuba
+2D
+Cyprus
+2E
+Czech Republic
+2F
+Cambodia
+30
+Democratic People's Republic of Korea
+31
+Denmark
+32
+Djibouti
+33
+Dominican Republic
+34
+Dominica
+35
+Ecuador
+36
+Egypt
+37
+El Salvador
+38
+Equatorial Guinea
+39
+Ethiopia
+3A
+Falkland Islands
+3B
+Fiji
+3C
+Finland
+3D
+France
+3E
+French Polynesia
+3F
+(available)
+40
+Gabon
+41
+Gambia
+42
+Germany
+43
+Angola
+44
+Ghana
+45
+Gibraltar
+46
+Greece
+47
+Grenada
+48
+Guam
+49
+Guatemala
+4A
+Guernsey
+4B
+Guinea
+4C
+Guinea-Bissau
+4D
+Guayana
+4E
+Haiti
+4F
+Honduras
+50
+Hongkong
+51
+Hungary
+52
+Iceland
+53
+India
+54
+Indonesia
+55
+Iran (Islamic Republic of)
+56
+Iraq
+57
+Ireland
+58
+Israel
+59
+Italy
+5A
+Côte d'Ivoire
+5B
+Jamaica
+5C
+Afghanistan
+5D
+Jersey
+5E
+Jordan
+5F
+Kenya
+60
+Kiribati
+61
+Korea (Republic of)
+62
+Kuwait
+63
+Lao (People's Democratic Republic)
+64
+Lebanon
+65
+Lesotho
+66
+Liberia
+67
+Libya
+68
+Liechtenstein
+69
+Luxembourg
+6A
+Macao
+6B
+Madagascar
+6C
+Malaysia
+6D
+Malawi
+6E
+Maldives
+6F
+Mali
+70
+Malta
+71
+Mauritania
+72
+Mauritius
+73
+Mexico
+74
+Monaco
+75
+Mongolia
+76
+Montserrat
+77
+Morocco
+78
+Mozambique
+79
+Nauru
+7A
+Nepal
+7B
+Netherlands
+7C
+Netherlands Antilles
+7D
+New Caledonia
+7E
+New Zealand
+7F
+Nicaragua
+80
+Niger
+81
+Nigeria
+82
+Norway
+83
+Oman
+84
+Pakistan
+85
+Panama
+86
+Papua New Guinea
+87
+Paraguay
+88
+Peru
+89
+Philippines
+8A
+Poland
+8B
+Portugal
+8C
+Puerto Rico
+8D
+Qatar
+8E
+Romania
+8F
+Rwanda
+90
+Saint Kitts and Nevis
+91
+Saint Croix
+92
+Saint Helena and Ascension
+93
+Saint Lucia
+94
+San Marino
+95
+Saint Thomas
+96
+Sao Tomé and Principe
+97
+Saint Vicent and the Grenadines
+98
+Saudi Arabia
+99
+Senegal
+9A
+Seychelles
+9B
+Sierra Leone
+9C
+Singapore
+9D
+Solomon Islands
+9E
+Somalia
+9F
+South Africa
+A0
+Spain
+A1
+Sri Lanka
+A2
+Sudan
+A3
+Suriname
+A4
+Swaziland
+A5
+Sweden
+A6
+Switzerland
+A7
+Syria
+A8
+Tanzania
+A9
+Thailand
+AA
+Togo
+AB
+Tonga
+AC
+Trinidad and Tobago
+AD
+Tunisia
+AE
+Turkey
+AF
+Turks and Caicos Islands
+B0
+Tuvalu
+B1
+Uganda
+B2
+Ukraine
+B3
+United Arab Emirates
+B4
+United Kingdom
+B5
+United States
+B6
+Burkina Faso
+B7
+Uruguay
+B8
+Russia
+B9
+Vanuatu
+BA
+Vatican City State
+BB
+Venezuela
+BC
+Vietnam
+BD
+Wallis and Futuna
+BE
+Western Samoa
+BF
+Yemen (Republic of)
+C0
+Yemen (Republic of)
+C1
+Yugoslavia
+C2
+Zaire
+C3
+Zambia
+C4
+Zimbabwe
+C5
+Slovakia
+C6
+Slovenia
+C7
+(available)
+C8
+(available)
+C9
+(available)
+CA
+(available)
+CB
+(available)
+CC
+(available)
+CD
+(available)
+CE
+(available)
+CF
+(available)
+D0
+(available)
+D1
+(available)
+D2
+(available)
+D3
+(available)
+D4
+(available)
+D5
+(available)
+D6
+(available)
+D7
+(available)
+D8
+(available)
+D9
+(available)
+DA
+(available)
+DB
+(available)
+DC
+(available)
+DD
+(available)
+DE
+(available)
+DF
+(available)
+E0
+(available)
+E1
+(available)
+E2
+(available)
+E3
+(available)
+E4
+(available)
+E5
+(available)
+E6
+(available)
+E7
+(available)
+E8
+(available)
+E9
+(available)
+EA
+(available)
+EB
+(available)
+EC
+(available)
+ED
+(available)
+EE
+(available)
+EF
+(available)
+F0
+(available)
+F1
+(available)
+F2
+(available)
+F3
+(available)
+F4
+(available)
+F5
+(available)
+F6
+(available)
+F7
+Lithuania
+F8
+Latvia
+F9
+Estonia
+FA
+US Virgin Islands
+FB
+(available)
+FC
+(available)
+FD
+(Universal)
+FE
+Taiwan
+FF
+escape code to extension List
