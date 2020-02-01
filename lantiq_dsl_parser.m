@@ -36,6 +36,7 @@ function [ current_dsl_struct ] = lantiq_dsl_parser(data_source, data_fqn)
 if ~(isoctave)
 	dbstop if error;
 end
+timestamps.(mfilename).start = tic;
 fq_mfilename = mfilename('fullpath');
 mfilepath = fileparts(fq_mfilename);
 
@@ -140,7 +141,7 @@ end
 % just a small enough subset for quick and dirty monitoring
 collect_sub_cmd_subset = {'g997bang', 'g997gang', 'g997sang', 'g997dsnrg', 'g997dhlogg', 'g997dqlng', 'ptsg', 'g997listrg', 'rtsg', 'osg'};
 % everything
-%collect_sub_cmd_subset = {};
+collect_sub_cmd_subset = {};
 %collect_sub_cmd_subset = {'rtsg', 'osg', 'g997lig77'};
 %collect_sub_cmd_subset = {'g997lig77'};
 
