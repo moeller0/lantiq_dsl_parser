@@ -245,7 +245,7 @@ switch data_source
 			
 			% commands with one argument: Direction
 			single_arg_sub_cmd_string_list = {'osg', 'g997bansg', 'g997bang', 'g997gansg', 'g997gang', 'g997sansg', 'g997sang', 'lfsg', 'g997lspbg', ...
-				'g997lig', 'g997ansg', 'g997listrg', 'g997rasg', 'pmlsctg', 'pmlesctg', 'g997amlfcg', 'g997lfsg', 'rtsg'};
+				'g997lig', 'g997ansg', 'g997listrg', 'g997rasg', 'pmlsctg', 'pmlesctg', 'g997amlfcg', 'g997lfsg', 'rtsg', 'pmrtctg'};
 			current_sub_cmd_string_list = single_arg_sub_cmd_string_list;
 			if ~isempty(collect_sub_cmd_subset)
 				%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
@@ -287,7 +287,7 @@ switch data_source
 			
 			
 			% commands with two arguments: Direction and HistoryInterval
-			dual_arg_sub_cmd_string_list = {'pmlscsg', 'pmlsc1dg', 'pmlsc15mg', 'pmlescsg', 'pmlesc1dg', 'pmlesc15mg'};
+			dual_arg_sub_cmd_string_list = {'pmlscsg', 'pmlsc1dg', 'pmlsc15mg', 'pmlescsg', 'pmlesc1dg', 'pmlesc15mg', 'pmrtc15mg', 'pmrtc1dg', 'pmrtcsg'};
 			current_sub_cmd_string_list = dual_arg_sub_cmd_string_list;
 			if ~isempty(collect_sub_cmd_subset)
 				%ismember(zero_arg_sub_cmd_string_list, collect_sub_cmd_subset)
