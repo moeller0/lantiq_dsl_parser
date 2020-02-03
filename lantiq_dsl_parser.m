@@ -86,7 +86,7 @@ else
 end
 
 % most commands require specification of the direction
-direction_list = [1, 0];	% upload, download
+direction_list = [1, 0];	% 0: upload, 1: download
 updir = 0;
 updir_string = num2str(updir);
 downdir = 1;
