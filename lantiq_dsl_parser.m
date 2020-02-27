@@ -28,6 +28,7 @@ function [ current_dsl_struct ] = lantiq_dsl_parser(data_source, data_fqn)
 
 % dsl_cmd acs 2 : enforce resync
 % . /lib/functions/lantiq_dsl.sh ; dsl_cmd acs 2
+% ssh root@192.168.100.1 '. /lib/functions/lantiq_dsl.sh ; dsl_cmd acs 2'
 %#change SNR -2dbm (25=2,5dbm 40=4dbm etc.)
 %locs 0 -20
 %#force resynchronization
@@ -463,9 +464,9 @@ if isempty(current_dsl_struct_list) && ~isempty(current_dsl_struct)
 end
 
 % TODO check each sub_cmd for existence before trying to plot it...
-if (process_bitallocation)
+dsl_sub_cmd_string = 'g997bansg';
+if (process_bitallocation) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	% g997bansg DIRECTION: 997_BitAllocationNscShortGet
-	dsl_sub_cmd_string = 'g997bansg';
 	
 	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
 	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
@@ -487,9 +488,10 @@ if (process_bitallocation)
 	write_out_figure(g997bansg_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
-if (process_bitallocation2)
+
+dsl_sub_cmd_string = 'g997bang';
+if (process_bitallocation2) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	% g997bansg DIRECTION: 997_BitAllocationNscShortGet
-	dsl_sub_cmd_string = 'g997bang';
 	
 	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
 	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
@@ -515,8 +517,8 @@ if (process_bitallocation2)
 end
 
 
-if (process_gainallocation)
-	dsl_sub_cmd_string = 'g997gansg';
+dsl_sub_cmd_string = 'g997gansg';
+if (process_gainallocation) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	
 	g997gansg_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
@@ -533,8 +535,9 @@ if (process_gainallocation)
 	write_out_figure(g997gansg_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
-if (process_gainallocation2)
-	dsl_sub_cmd_string = 'g997gang';
+
+dsl_sub_cmd_string = 'g997gang';
+if (process_gainallocation2) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	
 	g997gang_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
@@ -551,9 +554,9 @@ if (process_gainallocation2)
 end
 
 
-if (process_snrallocation)
+dsl_sub_cmd_string = 'g997sansg';
+if (process_snrallocation) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	% 	onlt 512 bins, but covering the whole frequency range (so one value for every 8 sub-carriers)
-	dsl_sub_cmd_string = 'g997sansg';
 	
 	g997sansg_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
@@ -570,9 +573,10 @@ if (process_snrallocation)
 	write_out_figure(g997sansg_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
-if (process_snrallocation2)
+
+dsl_sub_cmd_string = 'g997sang';
+if (process_snrallocation2) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	% 	onlt 512 bins, but covering the whole frequency range (so one value for every 8 sub-carriers)
-	dsl_sub_cmd_string = 'g997sang';
 	
 	g997sang_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
@@ -588,10 +592,10 @@ if (process_snrallocation2)
 	write_out_figure(g997sang_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
-if (process_deltaSNR)
+dsl_sub_cmd_string = 'g997dsnrg';
+if (process_deltaSNR) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	% 	This takes two aruments, nDirection and nDeltDataType, but only 1
 	% 	for nDeltDataType
-	dsl_sub_cmd_string = 'g997dsnrg';
 	
 	g997dsnrg_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
@@ -623,10 +627,11 @@ if (process_deltaSNR)
 	write_out_figure(g997dsnrg_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
-if (process_deltaHLOG)
+
+dsl_sub_cmd_string = 'g997dhlogg';
+if (process_deltaHLOG) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	% 	This takes two aruments, nDirection and nDeltDataType, but only 1
 	% 	for nDeltDataType
-	dsl_sub_cmd_string = 'g997dhlogg';
 	
 	g997dhlogg_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
@@ -648,10 +653,10 @@ if (process_deltaHLOG)
 end
 
 
-if (process_deltaQLN)
+dsl_sub_cmd_string = 'g997dqlng';
+if (process_deltaQLN) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	% 	This takes two aruments, nDirection and nDeltDataType, but only 1
 	% 	for nDeltDataType
-	dsl_sub_cmd_string = 'g997dqlng';
 	
 	g997dqlng_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
@@ -673,8 +678,8 @@ if (process_deltaQLN)
 	write_out_figure(g997dqlng_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
-% construct summary figure
 
+% construct summary figure
 if (plot_combined) && ~isoctave()
 	combined_SNR_BitAllocation_fh = figure('Name', ['SNR and Bit Allocation by sub-carrier: ', current_dsl_struct.current_datetime], 'visible', figure_visibility_string);
 	%fnFormatDefaultAxes(DefaultAxesType);
@@ -907,6 +912,12 @@ lantig_dsl_cmd_string = fn_single_quote_string([ssh_dsl_cfg_struct.lantig_dsl_cm
 disp(['fn_call_dsl_cmd_via_ssh: ', lantig_dsl_cmd_string]);
 [ssh_status, dsl_cmd_output_string] = system([ssh_dsl_cfg_struct.ssh_command_stem, ' ', fn_single_quote_string([ssh_dsl_cfg_struct.lantig_dsl_cmd_prefix, ' ', dsl_sub_cmd_string, ' ', dsl_sub_cmd_arg_string])]);
 
+%TODO check ssh status!
+if (ssh_status ~= 0)
+	disp(['ssh exited with errors:', ssh_status, '; returning']);
+	return
+end
+
 parsed_dsl_output_struct.dsl_sub_cmd_string = dsl_sub_cmd_string;
 parsed_dsl_output_struct.dsl_sub_cmd_arg_string = dsl_sub_cmd_arg_string;
 
@@ -934,6 +945,9 @@ if isfield(parsed_dsl_output_struct, 'Return')
 	end
 else
 	% the help command does not return nReturn
+	if ~strcmp(dsl_sub_cmd_string, 'help')
+		error(['No return value from dsl_cmd received, FIXME.']);
+	end
 end
 
 % dsl_sub_cmd_string specific processing
@@ -2023,5 +2037,3 @@ end
 
 return
 end
-
-
