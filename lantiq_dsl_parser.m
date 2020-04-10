@@ -29,6 +29,8 @@ function [ current_dsl_struct ] = lantiq_dsl_parser(data_source, data_fqn)
 % dsl_cmd acs 2 : enforce resync
 % . /lib/functions/lantiq_dsl.sh ; dsl_cmd acs 2
 % ssh root@192.168.100.1 '. /lib/functions/lantiq_dsl.sh ; dsl_cmd acs 2'
+% ssh root@192.168.100.1 '/etc/init.d/dsl_control status'
+
 %#change SNR -2dbm (25=2,5dbm 40=4dbm etc.)
 %locs 0 -20
 %#force resynchronization
@@ -468,8 +470,8 @@ dsl_sub_cmd_string = 'g997bansg';
 if (process_bitallocation) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	% g997bansg DIRECTION: 997_BitAllocationNscShortGet
 	
-	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
-	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
+	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
+	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
 	
 	g997bansg_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
@@ -954,7 +956,12 @@ end
 switch dsl_sub_cmd_string
 	case 'lsg'
 		% get a human readable name for the LineState
-		parsed_dsl_output_struct.LineState_name = fn_find_dsl_state_name_by_value( parsed_dsl_output_struct.LineState );
+		if isfield(parsed_dsl_output_struct, 'LineState')
+			parsed_dsl_output_struct.LineState_name = fn_find_dsl_state_name_by_value( parsed_dsl_output_struct.LineState );
+		else
+			disp('ERROR: Expected parsed_dsl_output_struct.LineState field does not seem to exist');
+			parsed_dsl_output_struct
+		end
 	case 'g997lig'
 		% the string version of this, g997listrg does not carry T.35 code
 		% or Vendor specific indformation, but '2E'/46 values at those
