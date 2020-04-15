@@ -956,10 +956,10 @@ end
 switch dsl_sub_cmd_string
 	case 'lsg'
 		% get a human readable name for the LineState
-		if isfield(parsed_dsl_output_struct, 'LineState')
+		if isfield(parsed_dsl_output_struct, 'LineState') && ~isnan(parsed_dsl_output_struct.NaN)
 			parsed_dsl_output_struct.LineState_name = fn_find_dsl_state_name_by_value( parsed_dsl_output_struct.LineState );
 		else
-			disp('ERROR: Expected parsed_dsl_output_struct.LineState field does not seem to exist');
+			disp('ERROR: Expected parsed_dsl_output_struct.LineState field does not seem to exist or is NaN');
 			parsed_dsl_output_struct
 		end
 	case 'g997lig'
