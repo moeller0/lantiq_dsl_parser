@@ -36,6 +36,7 @@ function [ current_dsl_struct ] = lantiq_dsl_parser(data_source, data_fqn)
 %#force resynchronization
 %acs 2"
 
+
 if ~(isoctave)
 	dbstop if error;
 end
@@ -79,6 +80,7 @@ process_deltaQLN = 1;
 plot_combined = 1;
 DefaultPaperSizeType = 'A4_landscape';
 output_rect_fraction = 1/2.54; % matlab's print will interpret values as INCH even for PaperUnit centimeter specified figures...
+output_rect_fraction = 1;	% 2019a seems to have this fixed?
 
 close_figures_at_end = 1;
 InvisibleFigures = 0;
@@ -203,7 +205,9 @@ switch data_source
 				dsl_sub_cmd_string = current_sub_cmd_string_list{i_zero_arg_sub_cmd_string};
 				[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string)] = ...
 					fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, []);
-				current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				if ~isempty(find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list)))
+					current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				end
 			end
 			
 			
@@ -223,7 +227,9 @@ switch data_source
 					[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['DslMode_', cur_DslMode_string])] = ...
 						fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_DslMode_string);
 				end
-				current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				if ~isempty(find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list)))
+					current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				end
 			end
 			
 			
@@ -242,7 +248,9 @@ switch data_source
 					[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['HistoryInterval_', cur_HistoryInterval_string])] = ...
 						fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_HistoryInterval_string);
 				end
-				current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				if ~isempty(find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list)))
+					current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				end
 			end
 			
 			
@@ -262,7 +270,9 @@ switch data_source
 					[ssh_status, dsl_cmd_output, current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', cur_dir_string])] = ...
 						fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_dir_string);
 				end
-				current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				if ~isempty(find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list)))
+					current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				end
 			end
 			
 			% commands with two arguments: Direction and DeltDataType
@@ -285,7 +295,9 @@ switch data_source
 							fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_arg_string);
 					end
 				end
-				current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				if ~isempty(find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list)))
+					current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				end
 			end
 			
 			
@@ -309,7 +321,9 @@ switch data_source
 							fn_call_dsl_cmd_via_ssh( ssh_dsl_cfg, dsl_sub_cmd_string, cur_arg_string);
 					end
 				end
-				current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				if ~isempty(find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list)))
+					current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				end
 			end
 			
 			
@@ -334,7 +348,9 @@ switch data_source
 					end
 					
 				end
-				current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				if ~isempty(find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list)))
+					current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				end
 			end
 			
 			
@@ -358,7 +374,9 @@ switch data_source
 					end
 					
 				end
-				current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				if ~isempty(find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list)))
+					current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				end
 			end
 			
 			
@@ -388,7 +406,9 @@ switch data_source
 					end
 					
 				end
-				current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				if ~isempty(find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list)))
+					current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name = current_dsl_struct.subcmd_names_list{find(strcmp(dsl_sub_cmd_string, current_dsl_struct.subcmd_list))};
+				end
 			end
 			
 			% save data out
@@ -948,7 +968,9 @@ if isfield(parsed_dsl_output_struct, 'Return')
 else
 	% the help command does not return nReturn
 	if ~strcmp(dsl_sub_cmd_string, 'help')
-		error(['No return value from dsl_cmd received, FIXME.']);
+		%error(['No return value from dsl_cmd received, FIXME.']);
+		disp(['No return value from dsl_cmd received, FIXME.']);
+		return
 	end
 end
 
@@ -956,7 +978,7 @@ end
 switch dsl_sub_cmd_string
 	case 'lsg'
 		% get a human readable name for the LineState
-		if isfield(parsed_dsl_output_struct, 'LineState') && ~isnan(parsed_dsl_output_struct.NaN)
+		if isfield(parsed_dsl_output_struct, 'LineState') && (sum(isnan(parsed_dsl_output_struct.LineState)) == 0)
 			parsed_dsl_output_struct.LineState_name = fn_find_dsl_state_name_by_value( parsed_dsl_output_struct.LineState );
 		else
 			disp('ERROR: Expected parsed_dsl_output_struct.LineState field does not seem to exist or is NaN');
@@ -1081,7 +1103,7 @@ if isempty(dir(pathstr)),
 end
 
 % deal with r2016a changes, needs revision
-if (strcmp(version('-release'), '2016a'))
+if (ismember(version('-release'), {'2016a', '2019a'}))
 	set(img_fh, 'PaperPositionMode', 'manual');
 	if ~ismember(img_type, {'.png', '.tiff', '.tif'})
 		print_options_str = '-bestfit';
