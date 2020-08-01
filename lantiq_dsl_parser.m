@@ -630,8 +630,10 @@ if (process_deltaSNR) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).(ARG2).GroupSize
 	if isfield(current_dsl_struct, 'ptsg') && isfield(current_dsl_struct.ptsg, 'PilotIndex')
 		pilot_xvec_list = current_dsl_struct.ptsg.PilotIndex;
+		disp('Size of pilot_xvec_list');
+		disp(size(pilot_xvec_list));
 		plot([pilot_xvec_list(1), pilot_xvec_list(1)], [-70 70], 'Color', [1 0 0]);
-		plot([pilot_xvec_list(2), pilot_xvec_list(2)], [-70 70], 'Color', [1 0 0]);
+		%plot([pilot_xvec_list(2), pilot_xvec_list(2)], [-70 70], 'Color', [1 0 0]);
 	end
 	
 	hold off
