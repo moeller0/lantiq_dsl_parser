@@ -1582,7 +1582,7 @@ error_idx = find(error_code_struct.error_value_list == error_value);
 if isempty(error_idx)
 	disp(['ERROR: Unknown error value (', num2str(error_value),') encountered.']);
 	error_code_struct.error_value_list(end+1) = error_value;
-	error_code_struct.error_name_list{end} = "Unknown error value";
+	error_code_struct.error_name_list{end+1} = "Unknown error value";
 end
 
 if (length(error_idx) > 1)
