@@ -128,7 +128,8 @@ end
 %ssh root@192.168.100.1 '. /lib/functions/lantiq_dsl.sh ; dsl_cmd g997racg 0 0'
 ssh_dsl_cfg.lantiq_IP = '192.168.100.1';
 ssh_dsl_cfg.lantig_user = 'root';
-ssh_dsl_cfg.lantig_dsl_cmd_prefix = '. /lib/functions/lantiq_dsl.sh ; dsl_cmd';
+%ssh_dsl_cfg.lantig_dsl_cmd_prefix = '. /lib/functions/lantiq_dsl.sh ; dsl_cmd';
+ssh_dsl_cfg.lantig_dsl_cmd_prefix = '. /lib/functions/lantiq.sh ; dsl_cpe_pipe.sh';
 ssh_dsl_cfg.ssh_command_stem = ['ssh ', ssh_dsl_cfg.lantig_user, '@', ssh_dsl_cfg.lantiq_IP];
 dsl_sub_cmd_arg_string = [];
 
@@ -149,6 +150,7 @@ collect_sub_cmd_subset = {'g997bang', 'g997gang', 'g997sang', 'g997dsnrg', 'g997
 collect_sub_cmd_subset = {};
 %collect_sub_cmd_subset = {'rtsg', 'osg', 'g997lig77'};
 %collect_sub_cmd_subset = {'g997lig77'};
+%collect_sub_cmd_subset = {'g997bang'};
 
 
 current_dsl_struct_list = {};
@@ -515,8 +517,8 @@ dsl_sub_cmd_string = 'g997bang';
 if (process_bitallocation2) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	% g997bansg DIRECTION: 997_BitAllocationNscShortGet
 	
-	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
-	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
+	n_bits_download = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data);
+	n_bits_upload = sum(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', updir_string]).Data);
 	
 	g997bang_fh = figure('Name', current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name);
 	%TODO refactor plotting code to function
@@ -533,8 +535,8 @@ if (process_bitallocation2) && isfield(current_dsl_struct, dsl_sub_cmd_string)
 	
 	ylabel(current_dsl_struct.(dsl_sub_cmd_string).(['Direction_', downdir_string]).Data_name);
 	xlabel('Bin');
-	title({[current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name, '; Up: ', num2str(n_bits_upload/1000), ' kbit; Down: ', num2str(n_bits_download/1000), ' kbit']; ...
-		['Up: ', num2str(n_bits_upload*4/1000), ' Mbps; Down: ', num2str(n_bits_download*4/1000), ' Mbps']}, 'Interpreter', 'None');
+	title({[current_dsl_struct.(dsl_sub_cmd_string).dsl_sub_cmd_name, ' per DSL clock; Up: ', num2str(n_bits_upload/1000), ' kbit; Down: ', num2str(n_bits_download/1000), ' kbit']; ...
+		['Up: ', num2str(n_bits_upload*4/1000), ' Mbps; Down: ', num2str(n_bits_download*4/1000), ' Mbps (assuming 4KHz DSL clock)']}, 'Interpreter', 'None');
 	write_out_figure(g997bang_fh, fullfile(out_dir, [current_dsl_struct.current_datetime, '_', dsl_sub_cmd_string, '.', out_format]));
 end
 
@@ -1107,7 +1109,7 @@ if isempty(dir(pathstr)),
 end
 
 % deal with r2016a changes, needs revision
-if (ismember(version('-release'), {'2016a', '2019a'}))
+if (ismember(version('-release'), {'2016a', '2019a', '2019b'}))
 	set(img_fh, 'PaperPositionMode', 'manual');
 	if ~ismember(img_type, {'.png', '.tiff', '.tif'})
 		print_options_str = '-bestfit';
@@ -2062,6 +2064,9 @@ function [ string_from_hex_char_string ] = fn_convert_string_of_hex_to_string( h
 
 string_from_hex_char_string = '';
 
+%delimiter = ',';
+%hex_char_string = '26,00,48,49,53,49,34,12';
+
 processed_hex_char_string = [delimiter, hex_char_string];
 
 while length(processed_hex_char_string) > 0
@@ -2069,6 +2074,8 @@ while length(processed_hex_char_string) > 0
 	
 	string_from_hex_char_string = [string_from_hex_char_string, char(hex2dec(current_hex_char))];
 end
+
+%disp(string_from_hex_char_string);
 
 return
 end
